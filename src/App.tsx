@@ -1,200 +1,303 @@
-import React, { useState, useEffect } from 'react';
-import { Project, ProjectVersion } from './types/canvas';
-import { TEMPLATES } from './data/templates';
-import { ProjectList } from './components/ProjectList';
-import { CanvasEditor } from './components/CanvasEditor';
-import { NewProjectModal } from './components/NewProjectModal';
-import { I18nProvider } from './i18n';
+import React, { useState, useCallback, useMemo } from 'react';
+import {
+  ReactFlow,
+  MiniMap,
+  Controls,
+  Background,
+  useNodesState,
+  useEdgesState,
+  addEdge,
+  Connection,
+  Edge,
+  Node,
+  BackgroundVariant,
+} from '@xyflow/react';
 
-const LOCAL_STORAGE_KEY = 'atom_scope_builder_projects_v2';
+import { CustomWhatsAppNode } from './components/CustomWhatsAppNode';
+import { SidebarNodePalette } from './components/SidebarNodePalette';
+import { NodeInspector } from './components/NodeInspector';
+import { Header } from './components/Header';
+import { FichaTecnicaModal } from './components/FichaTecnicaModal';
+import { WhatsAppSimulatorModal } from './components/WhatsAppSimulatorModal';
+import { FlowPlanExportModal } from './components/FlowPlanExportModal';
+import { AiAssistantModal } from './components/AiAssistantModal';
 
-const INITIAL_DEMO_PROJECTS: Project[] = [
-  {
-    id: 'proj-demo-1',
-    name: 'Cliente E-commerce XYZ',
-    industry: 'E-commerce',
-    brandColor: '#FF6600',
-    updatedAt: new Date().toISOString(),
-    currentVersionNumber: 1,
-    versions: [
-      {
-        versionNumber: 1,
-        versionLabel: 'v1',
-        createdAt: new Date().toISOString(),
-        nodes: TEMPLATES['E-commerce'].nodes,
-        edges: TEMPLATES['E-commerce'].edges,
-        comments: TEMPLATES['E-commerce'].comments || [],
-      },
-    ],
-  },
-  {
-    id: 'proj-demo-2',
-    name: 'Clínica Salud Integral',
-    industry: 'Salud',
-    brandColor: '#059669',
-    updatedAt: new Date().toISOString(),
-    currentVersionNumber: 1,
-    versions: [
-      {
-        versionNumber: 1,
-        versionLabel: 'v1',
-        createdAt: new Date().toISOString(),
-        nodes: TEMPLATES['Salud'].nodes,
-        edges: TEMPLATES['Salud'].edges,
-        comments: TEMPLATES['Salud'].comments || [],
-      },
-    ],
-  },
-  {
-    id: 'proj-demo-3',
-    name: 'Grupo Inmobiliario Premier',
-    industry: 'Inmobiliario',
-    brandColor: '#FF6600',
-    updatedAt: new Date().toISOString(),
-    currentVersionNumber: 1,
-    versions: [
-      {
-        versionNumber: 1,
-        versionLabel: 'v1',
-        createdAt: new Date().toISOString(),
-        nodes: TEMPLATES['Inmobiliario'].nodes,
-        edges: TEMPLATES['Inmobiliario'].edges,
-        comments: [],
-      },
-    ],
-  },
-];
+import { NodeType, WhatsAppNodeData, ProjectMetadata } from './types';
+import { PREBUILT_TEMPLATES } from './data/templates';
+
+const initialProjectMeta: ProjectMetadata = {
+  name: 'Chatbot Atom Commerce & Support',
+  clientName: 'Atom Retail Solutions',
+  description: 'Flujo multicanal con atención al cliente, menú interactivo y derivación a CRM.',
+  industry: 'Retail & Ecommerce',
+  objective: 'Reducir el tiempo de respuesta inicial en WhatsApp e incrementar ventas automatizadas.',
+  author: 'Atom Solutions Architect',
+};
+
+const defaultTemplate = PREBUILT_TEMPLATES[0];
 
 export default function App() {
-  const [projects, setProjects] = useState<Project[]>(() => {
-    try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node<WhatsAppNodeData>>(
+    defaultTemplate.nodes as Node<WhatsAppNodeData>[]
+  );
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(defaultTemplate.edges);
+
+  const [projectMeta, setProjectMeta] = useState<ProjectMetadata>(
+    defaultTemplate.projectMeta || initialProjectMeta
+  );
+
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+
+  // Modal States
+  const [isFichaTecnicaOpen, setIsFichaTecnicaOpen] = useState(false);
+  const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isAiSuggestionsOpen, setIsAiSuggestionsOpen] = useState(false);
+
+  // Register custom node component
+  const nodeTypes = useMemo(() => ({ customWhatsAppNode: CustomWhatsAppNode }), []);
+
+  const onConnect = useCallback(
+    (params: Connection) => setEdges((eds) => addEdge(params, eds)),
+    [setEdges]
+  );
+
+  const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
+    setSelectedNodeId(node.id);
+  }, []);
+
+  const onPaneClick = useCallback(() => {
+    setSelectedNodeId(null);
+  }, []);
+
+  const handleAddNode = useCallback(
+    (type: NodeType) => {
+      const id = `node-${Date.now()}`;
+      const newNode: Node<WhatsAppNodeData> = {
+        id,
+        type: 'customWhatsAppNode',
+        position: {
+          x: 250 + (nodes.length % 5) * 40,
+          y: 150 + (nodes.length % 5) * 40,
+        },
+        data: {
+          nodeType: type,
+          label: getInitialLabel(type),
+          description: getInitialDescription(type),
+          options: type === 'eval_response' || type === 'smarton' ? ['Opción 1', 'Opción 2'] : undefined,
+          fieldName: type === 'save_field' || type === 'customer_stage' ? 'var_campo' : undefined,
+        },
+      };
+
+      setNodes((nds) => [...nds, newNode]);
+      setSelectedNodeId(id);
+    },
+    [nodes.length, setNodes]
+  );
+
+  const handleUpdateNodeData = useCallback(
+    (id: string, newPartialData: Partial<WhatsAppNodeData>) => {
+      setNodes((nds) =>
+        nds.map((node) => {
+          if (node.id === id) {
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                ...newPartialData,
+              },
+            };
+          }
+          return node;
+        })
+      );
+    },
+    [setNodes]
+  );
+
+  const handleDeleteNode = useCallback(
+    (id: string) => {
+      setNodes((nds) => nds.filter((n) => n.id !== id));
+      setEdges((eds) => eds.filter((e) => e.source !== id && e.target !== id));
+      if (selectedNodeId === id) setSelectedNodeId(null);
+    },
+    [selectedNodeId, setNodes, setEdges]
+  );
+
+  const handleLoadTemplate = useCallback(
+    (templateId: string) => {
+      const tmpl = PREBUILT_TEMPLATES.find((t) => t.id === templateId);
+      if (tmpl) {
+        setNodes(tmpl.nodes as Node<WhatsAppNodeData>[]);
+        setEdges(tmpl.edges);
+        setProjectMeta(tmpl.projectMeta);
+        setSelectedNodeId(null);
       }
-    } catch (err) {
-      console.error('Error loading projects from localStorage:', err);
-    }
-    return INITIAL_DEMO_PROJECTS;
-  });
+    },
+    [setNodes, setEdges]
+  );
 
-  const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
-  const [activeVersionNumber, setActiveVersionNumber] = useState<number>(1);
-  const [showNewModal, setShowNewModal] = useState<boolean>(false);
+  const handleApplyGeneratedFlow = useCallback(
+    (newNodes: Node<WhatsAppNodeData>[], newEdges: Edge[]) => {
+      setNodes(newNodes);
+      setEdges(newEdges);
+      setSelectedNodeId(null);
+    },
+    [setNodes, setEdges]
+  );
 
-  // Sync projects to localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(projects));
-    } catch (err) {
-      console.error('Error saving projects to localStorage:', err);
-    }
-  }, [projects]);
-
-  const activeProject = projects.find((p) => p.id === activeProjectId) || null;
-
-  // Open Canvas for project
-  const handleOpenProject = (project: Project, versionNumber?: number) => {
-    setActiveProjectId(project.id);
-    setActiveVersionNumber(versionNumber || project.currentVersionNumber || 1);
-  };
-
-  // Back to Project List
-  const handleBackToProjects = () => {
-    setActiveProjectId(null);
-  };
-
-  // Create new project with template
-  const handleCreateProject = (projectData: {
-    name: string;
-    industry: Project['industry'];
-    brandColor: string;
-    logo?: string;
-  }) => {
-    const templateData = TEMPLATES[projectData.industry] || TEMPLATES['Otro'];
-
-    const newVersion: ProjectVersion = {
-      versionNumber: 1,
-      versionLabel: 'v1',
-      createdAt: new Date().toISOString(),
-      nodes: JSON.parse(JSON.stringify(templateData.nodes || [])),
-      edges: JSON.parse(JSON.stringify(templateData.edges || [])),
-      comments: JSON.parse(JSON.stringify(templateData.comments || [])),
-    };
-
-    const newProject: Project = {
-      id: `proj-${Date.now()}`,
-      name: projectData.name,
-      industry: projectData.industry,
-      brandColor: projectData.brandColor,
-      logo: projectData.logo,
-      updatedAt: new Date().toISOString(),
-      currentVersionNumber: 1,
-      versions: [newVersion],
-    };
-
-    setProjects((prev) => [newProject, ...prev]);
-    setShowNewModal(false);
-    setActiveProjectId(newProject.id);
-    setActiveVersionNumber(1);
-  };
-
-  // Save updated project (versioning)
-  const handleSaveProject = (updatedProject: Project) => {
-    setProjects((prev) =>
-      prev.map((p) => (p.id === updatedProject.id ? updatedProject : p))
-    );
-  };
-
-  // Delete project
-  const handleDeleteProject = (projectId: string) => {
-    if (window.confirm('¿Estás seguro de que deseas eliminar este proyecto y todas sus versiones?')) {
-      setProjects((prev) => prev.filter((p) => p.id !== projectId));
-      if (activeProjectId === projectId) {
-        setActiveProjectId(null);
-      }
-    }
-  };
-
-  // Duplicate project
-  const handleDuplicateProject = (project: Project) => {
-    const duplicated: Project = {
-      ...project,
-      id: `proj-${Date.now()}`,
-      name: `${project.name} (Copia)`,
-      updatedAt: new Date().toISOString(),
-    };
-    setProjects((prev) => [duplicated, ...prev]);
-  };
+  const selectedNode = useMemo(
+    () => nodes.find((n) => n.id === selectedNodeId) || null,
+    [nodes, selectedNodeId]
+  );
 
   return (
-    <I18nProvider>
-    <div className="min-h-screen bg-atom-light">
-      {activeProject ? (
-        <CanvasEditor
-          project={activeProject}
-          initialVersionNumber={activeVersionNumber}
-          onSaveProject={handleSaveProject}
-          onBackToProjects={handleBackToProjects}
-        />
-      ) : (
-        <ProjectList
-          projects={projects}
-          onOpenProject={handleOpenProject}
-          onOpenNewProjectModal={() => setShowNewModal(true)}
-          onDeleteProject={handleDeleteProject}
-          onDuplicateProject={handleDuplicateProject}
-        />
-      )}
+    <div className="flex h-screen w-screen flex-col overflow-hidden bg-[var(--atom-light)] font-sans text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100">
+      {/* Top Navigation Header */}
+      <Header
+        projectMeta={projectMeta}
+        onUpdateProjectMeta={setProjectMeta}
+        nodeCount={nodes.length}
+        edgeCount={edges.length}
+        onOpenFichaTecnica={() => setIsFichaTecnicaOpen(true)}
+        onOpenSimulator={() => setIsSimulatorOpen(true)}
+        onOpenExportModal={() => setIsExportModalOpen(true)}
+        onOpenAiSuggestions={() => setIsAiSuggestionsOpen(true)}
+      />
 
-      {showNewModal && (
-        <NewProjectModal
-          onCreateProject={handleCreateProject}
-          onClose={() => setShowNewModal(false)}
+      {/* Main Workspace (Palette + ReactFlow Canvas + Inspector) */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left Sidebar Palette */}
+        <SidebarNodePalette
+          onAddNode={handleAddNode}
+          projectMeta={projectMeta}
+          onUpdateProjectMeta={setProjectMeta}
+          onLoadTemplate={handleLoadTemplate}
         />
-      )}
+
+        {/* Center Flow Canvas */}
+        <main className="relative flex-1 bg-[var(--atom-light)] dark:bg-slate-900">
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            onNodeClick={onNodeClick}
+            onPaneClick={onPaneClick}
+            nodeTypes={nodeTypes}
+            fitView
+            defaultEdgeOptions={{
+              type: 'smoothstep',
+              animated: true,
+              style: { stroke: '#FF6600', strokeWidth: 2 },
+            }}
+          >
+            <Controls className="!border-slate-200 !bg-white !shadow-md dark:!border-slate-800 dark:!bg-slate-900" />
+            <MiniMap
+              zoomable
+              pannable
+              className="!border-slate-200 !bg-white !shadow-md dark:!border-slate-800 dark:!bg-slate-900"
+            />
+            <Background variant={BackgroundVariant.Dots} gap={16} size={1} color="#cbd5e1" />
+          </ReactFlow>
+        </main>
+
+        {/* Right Inspector Drawer (shown when node is selected) */}
+        {selectedNode && (
+          <NodeInspector
+            selectedNode={selectedNode}
+            onUpdateNodeData={handleUpdateNodeData}
+            onDeleteNode={handleDeleteNode}
+            onClose={() => setSelectedNodeId(null)}
+          />
+        )}
+      </div>
+
+      {/* Modals */}
+      <FichaTecnicaModal
+        isOpen={isFichaTecnicaOpen}
+        onClose={() => setIsFichaTecnicaOpen(false)}
+        projectMeta={projectMeta}
+        nodes={nodes}
+        edges={edges}
+      />
+
+      <WhatsAppSimulatorModal
+        isOpen={isSimulatorOpen}
+        onClose={() => setIsSimulatorOpen(false)}
+        nodes={nodes}
+        edges={edges}
+      />
+
+      <FlowPlanExportModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        nodes={nodes}
+        edges={edges}
+        projectMeta={projectMeta}
+      />
+
+      <AiAssistantModal
+        isOpen={isAiSuggestionsOpen}
+        onClose={() => setIsAiSuggestionsOpen(false)}
+        nodes={nodes}
+        edges={edges}
+        projectMeta={projectMeta}
+        onApplyGeneratedFlow={handleApplyGeneratedFlow}
+      />
     </div>
-    </I18nProvider>
   );
+}
+
+function getInitialLabel(type: NodeType): string {
+  switch (type) {
+    case 'message':
+      return 'Mensaje de Texto';
+    case 'template':
+      return 'Plantilla WhatsApp';
+    case 'eval_response':
+      return 'Evaluar Botones';
+    case 'condition':
+      return 'Condicional';
+    case 'jump':
+      return 'Salto Flujo';
+    case 'typification':
+      return 'Cierre Ticket';
+    case 'delay':
+      return 'Espera Temporal';
+    case 'save_field':
+      return 'Guardar Campo';
+    case 'smarton':
+      return 'Smarton AI Assistant';
+    case 'format':
+      return 'Formatear Dato';
+    case 'tag':
+      return 'Etiquetar Contacto';
+    case 'customer_stage':
+      return 'Etapa del Funnel';
+    case 'assign_group':
+      return 'Asignar Agente';
+    case 'crm':
+      return 'Consulta HTTP/CRM';
+    default:
+      return 'Nuevo Nodo';
+  }
+}
+
+function getInitialDescription(type: NodeType): string {
+  switch (type) {
+    case 'message':
+      return '¡Hola! Gracias por comunicarte con nosotros.';
+    case 'eval_response':
+      return 'Por favor selecciona una de las siguientes opciones:';
+    case 'smarton':
+      return 'Asistente IA para resolver preguntas frecuentes del cliente.';
+    case 'save_field':
+      return 'Ingrese el valor que desea guardar.';
+    case 'crm':
+      return 'Obtener datos de API externa.';
+    default:
+      return '';
+  }
 }

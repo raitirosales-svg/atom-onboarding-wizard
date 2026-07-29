@@ -1,10 +1,32 @@
 @import "tailwindcss";
+@import "@xyflow/react/dist/style.css";
 
 @theme {
   --color-atom-orange: #FF6600;
-  --color-atom-orange-hover: #e55a00;
+  --color-atom-orange-hover: #E55B00;
   --color-atom-navy: #0F1E3A;
-  --color-atom-navy-light: #1a2d4a;
+  --color-atom-navy-light: #1A2E50;
   --color-atom-light: #F2F8FC;
   --color-atom-border: #BDD7E9;
 }
+
+:root {
+  --atom-orange: #FF6600;
+  --atom-navy: #0F1E3A;
+  --atom-light: #F2F8FC;
+  --atom-border: #BDD7E9;
+}
+
+/* Custom canvas grid styles */
+.react-flow__node {
+  border-radius: 0.75rem;
+}
+
+.react-flow__handle {
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+.react-flow__handle:hover {
+  transform: scale(1.25);
+}
+

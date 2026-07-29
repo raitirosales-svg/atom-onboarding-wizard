@@ -1,187 +1,604 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 export type Language = 'es' | 'en' | 'pt';
 
-const LANG_KEY = 'atom_lang';
+export interface Translations {
+  // Header
+  appName: string;
+  engineName: string;
+  flowNamePlaceholder: string;
+  stepsCount: string;
+  nodesCount: string;
+  connectionsCount: string;
+  aiSuggestionsBtn: string;
+  simulatorBtn: string;
+  flowPlanBtn: string;
+  generateSpecBtn: string;
 
-const translations: Record<string, Record<Language, string>> = {
-  // ── Project List ──
-  'app.title': { es: 'ATOM Scope Builder', en: 'ATOM Scope Builder', pt: 'ATOM Scope Builder' },
-  'app.subtitle': { es: 'Define flujos conversacionales y expórtalos a FlowBuilder', en: 'Define conversational flows and export to FlowBuilder', pt: 'Defina fluxos conversacionais e exporte para o FlowBuilder' },
-  'projects.title': { es: 'Mis Proyectos', en: 'My Projects', pt: 'Meus Projetos' },
-  'projects.search': { es: 'Buscar proyectos...', en: 'Search projects...', pt: 'Buscar projetos...' },
-  'projects.all': { es: 'Todas las industrias', en: 'All industries', pt: 'Todas as indústrias' },
-  'projects.empty': { es: 'No hay proyectos. Crea el primero.', en: 'No projects. Create the first one.', pt: 'Nenhum projeto. Crie o primeiro.' },
-  'projects.new': { es: 'Nuevo Proyecto', en: 'New Project', pt: 'Novo Projeto' },
-  'projects.steps': { es: 'Pasos', en: 'Steps', pt: 'Passos' },
-  'projects.integrations': { es: 'Integraciones', en: 'Integrations', pt: 'Integrações' },
-  'projects.duplicate': { es: 'Duplicar', en: 'Duplicate', pt: 'Duplicar' },
-  'projects.delete': { es: 'Eliminar', en: 'Delete', pt: 'Excluir' },
-  'projects.open': { es: 'Abrir Canvas', en: 'Open Canvas', pt: 'Abrir Canvas' },
-  'projects.version': { es: 'Versión', en: 'Version', pt: 'Versão' },
-  'projects.modified': { es: 'Modificado', en: 'Modified', pt: 'Modificado' },
-  'projects.hero': { es: 'Construye flujos conversacionales profesionales con inteligencia artificial.', en: 'Build professional conversational flows with AI.', pt: 'Construa fluxos conversacionais profissionais com IA.' },
+  // Sidebar / Palette
+  tabNodes: string;
+  tabProject: string;
+  tabTemplates: string;
 
-  // ── New Project Modal ──
-  'new.title': { es: 'Nuevo Proyecto', en: 'New Project', pt: 'Novo Projeto' },
-  'new.clientName': { es: 'Nombre del cliente', en: 'Client name', pt: 'Nome do cliente' },
-  'new.clientName_ph': { es: 'Ej: Hansa Automotriz', en: 'Ex: Hansa Automotive', pt: 'Ex: Hansa Automotiva' },
-  'new.industry': { es: 'Industria', en: 'Industry', pt: 'Indústria' },
-  'new.selectIndustry': { es: 'Seleccionar industria', en: 'Select industry', pt: 'Selecionar indústria' },
-  'new.brandColor': { es: 'Color de marca', en: 'Brand color', pt: 'Cor da marca' },
-  'new.logo': { es: 'Logo (opcional)', en: 'Logo (optional)', pt: 'Logo (opcional)' },
-  'new.create': { es: 'Crear Proyecto', en: 'Create Project', pt: 'Criar Projeto' },
-  'new.cancel': { es: 'Cancelar', en: 'Cancel', pt: 'Cancelar' },
-  'new.template': { es: 'Se cargará una plantilla predefinida para esta industria', en: 'A predefined template will be loaded for this industry', pt: 'Um modelo predefinido será carregado para esta indústria' },
+  catMessages: string;
+  catInteraction: string;
+  catAi: string;
+  catLogic: string;
+  catIntegrations: string;
 
-  // ── Canvas Header ──
-  'canvas.back': { es: '← Proyectos', en: '← Projects', pt: '← Projetos' },
-  'canvas.steps': { es: 'Pasos', en: 'Steps', pt: 'Passos' },
-  'canvas.integrations_count': { es: 'Integraciones', en: 'Integrations', pt: 'Integrações' },
-  'canvas.spec': { es: 'Generar Ficha Técnica', en: 'Generate Technical Sheet', pt: 'Gerar Ficha Técnica' },
-  'canvas.saved': { es: 'Guardado', en: 'Saved', pt: 'Salvo' },
-  'canvas.saving': { es: 'Guardando...', en: 'Saving...', pt: 'Salvando...' },
-  'canvas.unsaved': { es: 'Sin guardar', en: 'Unsaved', pt: 'Não salvo' },
-  'canvas.toastSaved': { es: 'Proyecto guardado', en: 'Project saved', pt: 'Projeto salvo' },
+  // Node Labels & Descriptions
+  nodeMessageLabel: string;
+  nodeMessageDesc: string;
+  nodeTemplateLabel: string;
+  nodeTemplateDesc: string;
+  nodeEvalResponseLabel: string;
+  nodeEvalResponseDesc: string;
+  nodeDelayLabel: string;
+  nodeDelayDesc: string;
+  nodeSmartonLabel: string;
+  nodeSmartonDesc: string;
+  nodeSaveFieldLabel: string;
+  nodeSaveFieldDesc: string;
+  nodeConditionLabel: string;
+  nodeConditionDesc: string;
+  nodeTagLabel: string;
+  nodeTagDesc: string;
+  nodeCustomerStageLabel: string;
+  nodeCustomerStageDesc: string;
+  nodeCrmLabel: string;
+  nodeCrmDesc: string;
+  nodeAssignGroupLabel: string;
+  nodeAssignGroupDesc: string;
+  nodeTypificationLabel: string;
+  nodeTypificationDesc: string;
+  nodeJumpLabel: string;
+  nodeJumpDesc: string;
+  nodeFormatLabel: string;
+  nodeFormatDesc: string;
 
-  // ── Node Palette ──
-  'palette.search': { es: 'Buscar nodos...', en: 'Search nodes...', pt: 'Buscar nós...' },
-  'palette.cat_comunicacion': { es: 'Comunicación', en: 'Communication', pt: 'Comunicação' },
-  'palette.cat_logica': { es: 'Lógica', en: 'Logic', pt: 'Lógica' },
-  'palette.cat_datos': { es: 'Datos', en: 'Data', pt: 'Dados' },
-  'palette.cat_ia': { es: 'IA', en: 'AI', pt: 'IA' },
-  'palette.cat_clasificacion': { es: 'Clasificación', en: 'Classification', pt: 'Classificação' },
-  'palette.cat_integraciones': { es: 'Integraciones', en: 'Integrations', pt: 'Integrações' },
+  // Project Metadata Form
+  projectMetadataTitle: string;
+  projectNameLabel: string;
+  clientNameLabel: string;
+  industryLabel: string;
+  objectiveLabel: string;
+  authorLabel: string;
+  saveProjectInfo: string;
 
-  // ── Node Types ──
-  'node.message': { es: 'Mensaje', en: 'Message', pt: 'Mensagem' },
-  'node.message_desc': { es: 'Enviar texto, imágenes o botones', en: 'Send text, images or buttons', pt: 'Enviar texto, imagens ou botões' },
-  'node.template': { es: 'Plantilla WhatsApp', en: 'WhatsApp Template', pt: 'Template WhatsApp' },
-  'node.template_desc': { es: 'Mensaje pre-aprobado por Meta', en: 'Meta pre-approved message', pt: 'Mensagem pré-aprovada pela Meta' },
-  'node.eval_response': { es: 'Evaluar Respuesta', en: 'Evaluate Response', pt: 'Avaliar Resposta' },
-  'node.eval_response_desc': { es: 'Bifurcar según opciones del cliente', en: 'Branch based on client options', pt: 'Bifurcar conforme opções do cliente' },
-  'node.condition': { es: 'Condicional', en: 'Conditional', pt: 'Condicional' },
-  'node.condition_desc': { es: 'Evaluar variable o campo', en: 'Evaluate variable or field', pt: 'Avaliar variável ou campo' },
-  'node.jump': { es: 'Salto', en: 'Jump', pt: 'Salto' },
-  'node.jump_desc': { es: 'Redirigir a otra parte del flujo', en: 'Redirect to another part of the flow', pt: 'Redirecionar para outra parte do fluxo' },
-  'node.end': { es: 'Fin de Flujo', en: 'End of Flow', pt: 'Fim do Fluxo' },
-  'node.end_desc': { es: 'Finalizar la conversación', en: 'End the conversation', pt: 'Finalizar a conversa' },
-  'node.delay': { es: 'Tiempo de espera', en: 'Wait time', pt: 'Tempo de espera' },
-  'node.delay_desc': { es: 'Pausar antes de continuar', en: 'Pause before continuing', pt: 'Pausar antes de continuar' },
-  'node.save_field': { es: 'Guardar Campo', en: 'Save Field', pt: 'Salvar Campo' },
-  'node.save_field_desc': { es: 'Almacenar dato del cliente', en: 'Store client data', pt: 'Armazenar dado do cliente' },
-  'node.location': { es: 'Ubicación', en: 'Location', pt: 'Localização' },
-  'node.location_desc': { es: 'Solicitar ubicación al cliente', en: 'Request client location', pt: 'Solicitar localização ao cliente' },
-  'node.smarton': { es: 'Smarton - Agente IA', en: 'Smarton - AI Agent', pt: 'Smarton - Agente IA' },
-  'node.smarton_desc': { es: 'IA conversacional con conocimiento', en: 'Conversational AI with knowledge', pt: 'IA conversacional com conhecimento' },
-  'node.format': { es: 'Formatear', en: 'Format', pt: 'Formatar' },
-  'node.format_desc': { es: 'Transformar datos con IA', en: 'Transform data with AI', pt: 'Transformar dados com IA' },
-  'node.tag': { es: 'Etiqueta', en: 'Tag', pt: 'Etiqueta' },
-  'node.tag_desc': { es: 'Clasificar conversación', en: 'Classify conversation', pt: 'Classificar conversa' },
-  'node.customer_stage': { es: 'Etapa del Cliente', en: 'Customer Stage', pt: 'Etapa do Cliente' },
-  'node.customer_stage_desc': { es: 'Avanzar en funnel de ventas', en: 'Advance in sales funnel', pt: 'Avançar no funil de vendas' },
-  'node.typification': { es: 'Tipificación', en: 'Typification', pt: 'Tipificação' },
-  'node.typification_desc': { es: 'Categorizar motivo de cierre', en: 'Categorize closing reason', pt: 'Categorizar motivo de fechamento' },
-  'node.assign_group': { es: 'Asignar a Grupo', en: 'Assign to Group', pt: 'Atribuir a Grupo' },
-  'node.assign_group_desc': { es: 'Transferir a equipo humano', en: 'Transfer to human team', pt: 'Transferir para equipe humana' },
-  'node.crm': { es: 'CRM', en: 'CRM', pt: 'CRM' },
-  'node.crm_desc': { es: 'Conectar con HubSpot, Salesforce...', en: 'Connect with HubSpot, Salesforce...', pt: 'Conectar com HubSpot, Salesforce...' },
-  'node.payment': { es: 'Pasarela de pago', en: 'Payment gateway', pt: 'Gateway de pagamento' },
-  'node.payment_desc': { es: 'Procesar pagos (Stripe, etc)', en: 'Process payments (Stripe, etc)', pt: 'Processar pagamentos (Stripe, etc)' },
-  'node.database_api': { es: 'Base de datos / API externa', en: 'Database / External API', pt: 'Banco de dados / API externa' },
-  'node.database_api_desc': { es: 'Consultar sistemas externos', en: 'Query external systems', pt: 'Consultar sistemas externos' },
-  'node.meta_capi': { es: 'Conversión API Meta', en: 'Meta CAPI', pt: 'Conversão API Meta' },
-  'node.meta_capi_desc': { es: 'Tracking de conversiones Meta', en: 'Meta conversion tracking', pt: 'Rastreamento de conversões Meta' },
+  // Industries
+  indEcommerce: string;
+  indHealth: string;
+  indFinancial: string;
+  indRealEstate: string;
+  indEducation: string;
+  indRetail: string;
+  indOther: string;
 
-  // ── Node Inspector ──
-  'inspector.title': { es: 'Inspector de Nodo', en: 'Node Inspector', pt: 'Inspetor de Nó' },
-  'inspector.noSelection': { es: 'Selecciona un nodo en el canvas para editarlo', en: 'Select a node on the canvas to edit it', pt: 'Selecione um nó no canvas para editá-lo' },
-  'inspector.label': { es: 'Título', en: 'Title', pt: 'Título' },
-  'inspector.description': { es: 'Descripción', en: 'Description', pt: 'Descrição' },
-  'inspector.variable': { es: 'Nombre de variable', en: 'Variable name', pt: 'Nome da variável' },
-  'inspector.systemName': { es: 'Nombre del sistema', en: 'System name', pt: 'Nome do sistema' },
-  'inspector.options': { es: 'Opciones', en: 'Options', pt: 'Opções' },
-  'inspector.addOption': { es: '+ Agregar opción', en: '+ Add option', pt: '+ Adicionar opção' },
-  'inspector.comments': { es: 'Comentarios', en: 'Comments', pt: 'Comentários' },
-  'inspector.addComment': { es: 'Agregar comentario', en: 'Add comment', pt: 'Adicionar comentário' },
-  'inspector.author': { es: 'Autor', en: 'Author', pt: 'Autor' },
-  'inspector.author_especialista': { es: 'Especialista Onboarding', en: 'Onboarding Specialist', pt: 'Especialista Onboarding' },
-  'inspector.author_cliente': { es: 'Cliente', en: 'Client', pt: 'Cliente' },
-  'inspector.author_dev': { es: 'Desarrollador', en: 'Developer', pt: 'Desenvolvedor' },
-  'inspector.branches': { es: 'ramas', en: 'branches', pt: 'ramificações' },
+  // Projects & Templates
+  myProjects: string;
+  createProject: string;
+  searchPlaceholder: string;
+  templatesTitle: string;
+  templatesDesc: string;
+  loadTemplateBtn: string;
 
-  // ── Ficha Técnica ──
-  'ficha.title': { es: 'Ficha Técnica de Implementación', en: 'Implementation Technical Sheet', pt: 'Ficha Técnica de Implementação' },
-  'ficha.subtitle': { es: 'Documento técnico auto-generado para', en: 'Auto-generated technical document for', pt: 'Documento técnico auto-gerado para' },
-  'ficha.loading': { es: 'Generando Ficha Técnica...', en: 'Generating Technical Sheet...', pt: 'Gerando Ficha Técnica...' },
-  'ficha.loadingDesc': { es: 'Analizando estructura del flujo, nodos de integración, variables y acuerdos.', en: 'Analyzing flow structure, integration nodes, variables and agreements.', pt: 'Analisando estrutura do fluxo, nós de integração, variáveis e acordos.' },
-  'ficha.copyFull': { es: 'Copiar ficha técnica', en: 'Copy technical sheet', pt: 'Copiar ficha técnica' },
-  'ficha.copyClient': { es: 'Copiar resumen para cliente', en: 'Copy client summary', pt: 'Copiar resumo para cliente' },
-  'ficha.exportFlow': { es: 'Exportar FlowBuilder', en: 'Export FlowBuilder', pt: 'Exportar FlowBuilder' },
-  'ficha.exportFlowGen': { es: 'Generando...', en: 'Generating...', pt: 'Gerando...' },
-  'ficha.downloadJSON': { es: 'Descargar JSON del flujo', en: 'Download flow JSON', pt: 'Baixar JSON do fluxo' },
-  'ficha.regenerate': { es: 'Regenerar', en: 'Regenerate', pt: 'Regenerar' },
-  'ficha.copied': { es: '¡Copiado!', en: 'Copied!', pt: 'Copiado!' },
-  'ficha.flowHint': { es: 'Haz clic en Exportar FlowBuilder para descargar el flow_plan.json listo para importar en ATOM.', en: 'Click Export FlowBuilder to download the flow_plan.json ready to import into ATOM.', pt: 'Clique em Exportar FlowBuilder para baixar o flow_plan.json pronto para importar no ATOM.' },
+  // Node Inspector
+  inspectorTitle: string;
+  nodeTypeLabel: string;
+  nodeTitleInput: string;
+  nodeDescInput: string;
+  buttonOptionsLabel: string;
+  addOptionBtn: string;
+  fieldNameLabel: string;
+  commentsLabel: string;
+  commentsPlaceholder: string;
+  deleteNodeBtn: string;
 
-  // ── Comments ──
-  'comments.title': { es: 'Comentarios del flujo', en: 'Flow comments', pt: 'Comentários do fluxo' },
+  // Ficha Tecnica Modal
+  specModalTitle: string;
+  specModalSubtitle: string;
+  specGenerateBtn: string;
+  specCopyBtn: string;
+  specCopied: string;
+  specRegenerateBtn: string;
+  copyClientSummaryBtn: string;
+  downloadFlowJsonBtn: string;
+  exportFlowBuilderBtn: string;
+  generatingSpecMsg: string;
 
-  // ── Industries ──
-  'industry.ecommerce': { es: 'E-commerce', en: 'E-commerce', pt: 'E-commerce' },
-  'industry.salud': { es: 'Salud', en: 'Health', pt: 'Saúde' },
-  'industry.financiero': { es: 'Servicios Financieros', en: 'Financial Services', pt: 'Serviços Financeiros' },
-  'industry.inmobiliario': { es: 'Inmobiliario', en: 'Real Estate', pt: 'Imobiliário' },
-  'industry.educacion': { es: 'Educación', en: 'Education', pt: 'Educação' },
-  'industry.otro': { es: 'Otro', en: 'Other', pt: 'Outro' },
+  // WhatsApp Simulator Modal
+  simTitle: string;
+  simStatus: string;
+  simRestartTooltip: string;
+  simInputPlaceholder: string;
+  simNoNodesMsg: string;
+  simEndMsg: string;
 
-  // ── General ──
-  'gen.loading': { es: 'Cargando...', en: 'Loading...', pt: 'Carregando...' },
-  'gen.save': { es: 'Guardar', en: 'Save', pt: 'Salvar' },
-  'gen.close': { es: 'Cerrar', en: 'Close', pt: 'Fechar' },
+  // FlowPlan Export Modal
+  exportTitle: string;
+  exportSubtitle: string;
+  exportValidityMsg: string;
+  copyJsonBtn: string;
+  downloadJsonBtn: string;
+
+  // AI Assistant Modal
+  aiModalTitle: string;
+  aiModalSubtitle: string;
+  aiInputPlaceholder: string;
+  aiGenerateBtn: string;
+  aiQuickSuggestions: string;
+  aiQuickOpt1: string;
+  aiQuickOpt2: string;
+  aiQuickOpt3: string;
+  aiThinkingMsg: string;
+  aiRecommendationsTitle: string;
+  aiFlowGeneratedMsg: string;
+  aiApplyToCanvasBtn: string;
+
+  // Comments / Misc
+  commentsDrawerTitle: string;
+  addCommentPlaceholder: string;
+}
+
+export const translations: Record<Language, Translations> = {
+  es: {
+    // Header
+    appName: 'Atom Scope Builder',
+    engineName: 'WhatsApp Engine',
+    flowNamePlaceholder: 'Nombre del Flujo...',
+    stepsCount: '{count} Pasos',
+    nodesCount: '{count} Nodos',
+    connectionsCount: '{count} Conexiones',
+    aiSuggestionsBtn: 'Sugerencias IA',
+    simulatorBtn: 'Simulador WhatsApp',
+    flowPlanBtn: 'FlowPlan JSON',
+    generateSpecBtn: 'Generar Ficha Técnica IA',
+
+    // Sidebar
+    tabNodes: 'Componentes',
+    tabProject: 'Proyecto',
+    tabTemplates: 'Plantillas',
+
+    catMessages: '💬 Comunicación & Contenido',
+    catInteraction: '🔘 Interacción & Menús',
+    catAi: '🤖 Inteligencia Artificial',
+    catLogic: '🧠 Lógica & Datos',
+    catIntegrations: '🌐 Integraciones & CRM',
+
+    // Node Labels & Descriptions
+    nodeMessageLabel: 'Mensaje de Texto',
+    nodeMessageDesc: 'Envía un mensaje de texto plano con variables.',
+    nodeTemplateLabel: 'Plantilla WhatsApp (HSM)',
+    nodeTemplateDesc: 'Mensaje pre-aprobado por Meta (Template).',
+    nodeEvalResponseLabel: 'Evaluar Botones',
+    nodeEvalResponseDesc: 'Muestra opciones interactivas (1-3 botones).',
+    nodeDelayLabel: 'Espera / Delay',
+    nodeDelayDesc: 'Añade una pausa temporal antes del siguiente paso.',
+    nodeSmartonLabel: 'Smarton AI Assistant',
+    nodeSmartonDesc: 'Respuesta generativa en tiempo real con Inteligencia Artificial.',
+    nodeSaveFieldLabel: 'Guardar Campo',
+    nodeSaveFieldDesc: 'Almacena la respuesta del usuario en una variable.',
+    nodeConditionLabel: 'Condicional (If/Else)',
+    nodeConditionDesc: 'Bifurca el flujo según el valor de una variable.',
+    nodeTagLabel: 'Etiquetar Contacto',
+    nodeTagDesc: 'Añade un tag al perfil del cliente.',
+    nodeCustomerStageLabel: 'Etapa del Cliente',
+    nodeCustomerStageDesc: 'Actualiza el embudo de ventas (Funnel Stage).',
+    nodeCrmLabel: 'Integración HTTP / CRM',
+    nodeCrmDesc: 'Llamada API a CRM, ERP o sistema externo.',
+    nodeAssignGroupLabel: 'Asignar Asesor',
+    nodeAssignGroupDesc: 'Transfiere la conversación a un agente o equipo humano.',
+    nodeTypificationLabel: 'Tipificación / Cierre',
+    nodeTypificationDesc: 'Cierra el ticket y registra la resolución final.',
+    nodeJumpLabel: 'Salto de Flujo',
+    nodeJumpDesc: 'Redirige a otro bloque o submódulo del diagrama.',
+    nodeFormatLabel: 'Formatear Dato',
+    nodeFormatDesc: 'Transforma cadenas de texto, números o fechas.',
+
+    // Project Metadata
+    projectMetadataTitle: 'Información General del Proyecto',
+    projectNameLabel: 'Nombre del Proyecto',
+    clientNameLabel: 'Nombre del Cliente / Empresa',
+    industryLabel: 'Industria / Sector',
+    objectiveLabel: 'Objetivo Comercial',
+    authorLabel: 'Autor / Arquitecto de Solución',
+    saveProjectInfo: 'Guardar Cambios de Proyecto',
+
+    // Industries
+    indEcommerce: 'E-commerce & Retail',
+    indHealth: 'Salud & Medicina',
+    indFinancial: 'Servicios Financieros & Banca',
+    indRealEstate: 'Inmobiliario & Real Estate',
+    indEducation: 'Educación & Cursos',
+    indRetail: 'Retail & Comercio',
+    indOther: 'Otro Sector',
+
+    // Projects & Templates
+    myProjects: 'Mis Proyectos',
+    createProject: 'Crear Nuevo Proyecto',
+    searchPlaceholder: 'Buscar proyectos o flujos...',
+    templatesTitle: 'Plantillas Predefinidas',
+    templatesDesc: 'Acelera el diseño usando flujos de trabajo previamente aprobados por la industria.',
+    loadTemplateBtn: 'Cargar Flujo',
+
+    // Node Inspector
+    inspectorTitle: 'Inspector de Nodo',
+    nodeTypeLabel: 'Tipo de Nodo',
+    nodeTitleInput: 'Título del Nodo',
+    nodeDescInput: 'Descripción / Contenido',
+    buttonOptionsLabel: 'Opciones de Botones / Salidas',
+    addOptionBtn: 'Añadir Opción',
+    fieldNameLabel: 'Nombre de Variable',
+    commentsLabel: 'Comentarios y Notas',
+    commentsPlaceholder: 'Escribe notas técnicas o aclaraciones para la Ficha Técnica...',
+    deleteNodeBtn: 'Eliminar Nodo',
+
+    // Ficha Tecnica Modal
+    specModalTitle: 'Ficha Técnica Oficial del Proyecto (IA Generated)',
+    specModalSubtitle: 'Documento técnico arquitectónico listo para presentar al cliente o equipo técnico.',
+    specGenerateBtn: 'Generar Ficha Técnica con IA',
+    specCopyBtn: 'Copiar Ficha Técnica',
+    specCopied: '¡Copiado!',
+    specRegenerateBtn: 'Regenerar Documento',
+    copyClientSummaryBtn: 'Copiar Resumen para Cliente',
+    downloadFlowJsonBtn: 'Descargar JSON del Flujo',
+    exportFlowBuilderBtn: 'Exportar a FlowBuilder',
+    generatingSpecMsg: 'Generando documento técnico estructurado con Gemini AI...',
+
+    // WhatsApp Simulator
+    simTitle: 'Simulador WhatsApp Live',
+    simStatus: 'En línea (Simulador Live)',
+    simRestartTooltip: 'Reiniciar Simulación',
+    simInputPlaceholder: 'Escribe un mensaje...',
+    simNoNodesMsg: 'El diagrama no contiene nodos para simular.',
+    simEndMsg: 'Fin del flujo interactivo.',
+
+    // FlowPlan Export
+    exportTitle: 'Exportación de FlowPlan JSON',
+    exportSubtitle: 'Estructura estándar compatible con Atom Engine y herramientas de despliegue.',
+    exportValidityMsg: 'Validez del Esquema: {nodes} Nodos & {edges} Conexiones',
+    copyJsonBtn: 'Copiar JSON',
+    downloadJsonBtn: 'Descargar .json',
+
+    // AI Assistant Modal
+    aiModalTitle: 'Asistente de Diseño de Flujos Gemini AI',
+    aiModalSubtitle: 'Pide optimizaciones, generación de prompts o creación automática de diagramas.',
+    aiInputPlaceholder: "Ej: 'Diseña un flujo para agendamiento de citas médicas por WhatsApp'...",
+    aiGenerateBtn: 'Generar',
+    aiQuickSuggestions: 'Sugerencias rápidas:',
+    aiQuickOpt1: '+ Timeout recovery',
+    aiQuickOpt2: '+ Flujo Soporte Técnico',
+    aiQuickOpt3: '+ Mensajes más breves',
+    aiThinkingMsg: 'Gemini AI diseñando flujo y estructura...',
+    aiRecommendationsTitle: 'Recomendaciones del Asistente:',
+    aiFlowGeneratedMsg: 'Se generó una estructura con {count} nuevos nodos.',
+    aiApplyToCanvasBtn: 'Aplicar al Lienzo',
+
+    // Comments / Misc
+    commentsDrawerTitle: 'Comentarios del Flujo',
+    addCommentPlaceholder: 'Escribe un comentario para este nodo...',
+  },
+
+  en: {
+    // Header
+    appName: 'Atom Scope Builder',
+    engineName: 'WhatsApp Engine',
+    flowNamePlaceholder: 'Flow Name...',
+    stepsCount: '{count} Steps',
+    nodesCount: '{count} Nodes',
+    connectionsCount: '{count} Connections',
+    aiSuggestionsBtn: 'AI Suggestions',
+    simulatorBtn: 'WhatsApp Simulator',
+    flowPlanBtn: 'FlowPlan JSON',
+    generateSpecBtn: 'Generate Technical Sheet',
+
+    // Sidebar
+    tabNodes: 'Components',
+    tabProject: 'Project',
+    tabTemplates: 'Templates',
+
+    catMessages: '💬 Communication & Content',
+    catInteraction: '🔘 Interaction & Menus',
+    catAi: '🤖 Artificial Intelligence',
+    catLogic: '🧠 Logic & Data',
+    catIntegrations: '🌐 Integrations & CRM',
+
+    // Node Labels & Descriptions
+    nodeMessageLabel: 'Text Message',
+    nodeMessageDesc: 'Sends a plain text message with dynamic variables.',
+    nodeTemplateLabel: 'WhatsApp Template (HSM)',
+    nodeTemplateDesc: 'Pre-approved message template by Meta.',
+    nodeEvalResponseLabel: 'Evaluate Buttons',
+    nodeEvalResponseDesc: 'Displays interactive options (1-3 buttons).',
+    nodeDelayLabel: 'Wait / Delay',
+    nodeDelayDesc: 'Adds a time pause before proceeding to the next step.',
+    nodeSmartonLabel: 'Smarton AI Assistant',
+    nodeSmartonDesc: 'Real-time generative AI responses.',
+    nodeSaveFieldLabel: 'Save Field',
+    nodeSaveFieldDesc: 'Stores user response inside a variable.',
+    nodeConditionLabel: 'Condition (If/Else)',
+    nodeConditionDesc: 'Branches the flow based on variable value.',
+    nodeTagLabel: 'Tag Contact',
+    nodeTagDesc: 'Adds a tag label to the customer profile.',
+    nodeCustomerStageLabel: 'Customer Stage',
+    nodeCustomerStageDesc: 'Updates the sales pipeline funnel stage.',
+    nodeCrmLabel: 'HTTP / CRM Integration',
+    nodeCrmDesc: 'API request to CRM, ERP, or external service.',
+    nodeAssignGroupLabel: 'Assign Agent',
+    nodeAssignGroupDesc: 'Transfers the chat to a live human agent or queue.',
+    nodeTypificationLabel: 'Resolution / Closure',
+    nodeTypificationDesc: 'Closes ticket and records final resolution tag.',
+    nodeJumpLabel: 'Flow Jump',
+    nodeJumpDesc: 'Redirects to another sub-module or diagram node.',
+    nodeFormatLabel: 'Format Data',
+    nodeFormatDesc: 'Transforms string text, numbers, or dates.',
+
+    // Project Metadata
+    projectMetadataTitle: 'Project Information',
+    projectNameLabel: 'Project Name',
+    clientNameLabel: 'Client / Company Name',
+    industryLabel: 'Industry / Sector',
+    objectiveLabel: 'Business Objective',
+    authorLabel: 'Author / Solution Architect',
+    saveProjectInfo: 'Save Project Details',
+
+    // Industries
+    indEcommerce: 'E-commerce & Retail',
+    indHealth: 'Health & Medicine',
+    indFinancial: 'Financial Services & Banking',
+    indRealEstate: 'Real Estate',
+    indEducation: 'Education & Courses',
+    indRetail: 'Retail & Commerce',
+    indOther: 'Other Sector',
+
+    // Projects & Templates
+    myProjects: 'My Projects',
+    createProject: 'Create New Project',
+    searchPlaceholder: 'Search projects or flows...',
+    templatesTitle: 'Prebuilt Templates',
+    templatesDesc: 'Accelerate design with industry pre-approved workflow blueprints.',
+    loadTemplateBtn: 'Load Flow',
+
+    // Node Inspector
+    inspectorTitle: 'Node Inspector',
+    nodeTypeLabel: 'Node Type',
+    nodeTitleInput: 'Node Title',
+    nodeDescInput: 'Description / Content',
+    buttonOptionsLabel: 'Button Options / Outputs',
+    addOptionBtn: 'Add Option',
+    fieldNameLabel: 'Variable Name',
+    commentsLabel: 'Comments & Notes',
+    commentsPlaceholder: 'Write technical notes or clarifications for technical sheet...',
+    deleteNodeBtn: 'Delete Node',
+
+    // Ficha Tecnica Modal
+    specModalTitle: 'Official Technical Sheet (AI Generated)',
+    specModalSubtitle: 'Architectural technical specification ready for client presentation.',
+    specGenerateBtn: 'Generate Technical Sheet with AI',
+    specCopyBtn: 'Copy Technical Sheet',
+    specCopied: 'Copied!',
+    specRegenerateBtn: 'Regenerate Document',
+    copyClientSummaryBtn: 'Copy Client Summary',
+    downloadFlowJsonBtn: 'Download Flow JSON',
+    exportFlowBuilderBtn: 'Export to FlowBuilder',
+    generatingSpecMsg: 'Generating structured technical specification with Gemini AI...',
+
+    // WhatsApp Simulator
+    simTitle: 'WhatsApp Live Simulator',
+    simStatus: 'Online (Live Simulator)',
+    simRestartTooltip: 'Restart Simulation',
+    simInputPlaceholder: 'Type a message...',
+    simNoNodesMsg: 'Diagram has no nodes to simulate.',
+    simEndMsg: 'Interactive flow finished.',
+
+    // FlowPlan Export
+    exportTitle: 'FlowPlan JSON Export',
+    exportSubtitle: 'Standard structure compatible with Atom Engine deployment.',
+    exportValidityMsg: 'Schema Validity: {nodes} Nodes & {edges} Connections',
+    copyJsonBtn: 'Copy JSON',
+    downloadJsonBtn: 'Download .json',
+
+    // AI Assistant Modal
+    aiModalTitle: 'Gemini AI Flow Assistant',
+    aiModalSubtitle: 'Request optimizations, prompt engineering, or flow generation.',
+    aiInputPlaceholder: "E.g. 'Design a medical appointment booking flow on WhatsApp'...",
+    aiGenerateBtn: 'Generate',
+    aiQuickSuggestions: 'Quick suggestions:',
+    aiQuickOpt1: '+ Timeout recovery',
+    aiQuickOpt2: '+ Tech Support Flow',
+    aiQuickOpt3: '+ Shorter messages',
+    aiThinkingMsg: 'Gemini AI designing flow and structure...',
+    aiRecommendationsTitle: 'Assistant Recommendations:',
+    aiFlowGeneratedMsg: 'Generated structure with {count} new nodes.',
+    aiApplyToCanvasBtn: 'Apply to Canvas',
+
+    // Comments / Misc
+    commentsDrawerTitle: 'Flow Comments',
+    addCommentPlaceholder: 'Write a comment for this node...',
+  },
+
+  pt: {
+    // Header
+    appName: 'Atom Scope Builder',
+    engineName: 'WhatsApp Engine',
+    flowNamePlaceholder: 'Nome do Fluxo...',
+    stepsCount: '{count} Passos',
+    nodesCount: '{count} Nós',
+    connectionsCount: '{count} Conexões',
+    aiSuggestionsBtn: 'Sugestões de IA',
+    simulatorBtn: 'Simulador WhatsApp',
+    flowPlanBtn: 'FlowPlan JSON',
+    generateSpecBtn: 'Gerar Ficha Técnica',
+
+    // Sidebar
+    tabNodes: 'Componentes',
+    tabProject: 'Projeto',
+    tabTemplates: 'Modelos',
+
+    catMessages: '💬 Comunicação e Conteúdo',
+    catInteraction: '🔘 Interação e Menus',
+    catAi: '🤖 Inteligência Artificial',
+    catLogic: '🧠 Lógica e Dados',
+    catIntegrations: '🌐 Integrações e CRM',
+
+    // Node Labels & Descriptions
+    nodeMessageLabel: 'Mensagem de Texto',
+    nodeMessageDesc: 'Envia uma mensagem de texto simples com variáveis.',
+    nodeTemplateLabel: 'Modelo WhatsApp (HSM)',
+    nodeTemplateDesc: 'Modelo de mensagem pré-aprovado pela Meta.',
+    nodeEvalResponseLabel: 'Avaliar Botões',
+    nodeEvalResponseDesc: 'Exibe opções interativas (1-3 botões).',
+    nodeDelayLabel: 'Aguardar / Delay',
+    nodeDelayDesc: 'Adiciona uma pausa temporal antes do próximo passo.',
+    nodeSmartonLabel: 'Smarton AI Assistant',
+    nodeSmartonDesc: 'Resposta generativa em tempo real com Inteligência Artificial.',
+    nodeSaveFieldLabel: 'Salvar Campo',
+    nodeSaveFieldDesc: 'Armazena a resposta do usuário em uma variável.',
+    nodeConditionLabel: 'Condicional (If/Else)',
+    nodeConditionDesc: 'Ramifica o fluxo com base no valor da variável.',
+    nodeTagLabel: 'Etiquetar Contato',
+    nodeTagDesc: 'Adiciona uma etiqueta ao perfil do cliente.',
+    nodeCustomerStageLabel: 'Etapa do Cliente',
+    nodeCustomerStageDesc: 'Atualiza a etapa do funil de vendas.',
+    nodeCrmLabel: 'Integração HTTP / CRM',
+    nodeCrmDesc: 'Chamada de API para CRM, ERP ou sistema externo.',
+    nodeAssignGroupLabel: 'Atribuir Atendente',
+    nodeAssignGroupDesc: 'Transfere a conversa para um agente ou equipe humana.',
+    nodeTypificationLabel: 'Tipificação / Fechamento',
+    nodeTypificationDesc: 'Encerra o chamado e registra a resolução final.',
+    nodeJumpLabel: 'Salto de Fluxo',
+    nodeJumpDesc: 'Redireciona para outro bloco do diagrama.',
+    nodeFormatLabel: 'Formatar Dado',
+    nodeFormatDesc: 'Transforma textos, números ou datas.',
+
+    // Project Metadata
+    projectMetadataTitle: 'Informações do Projeto',
+    projectNameLabel: 'Nome do Projeto',
+    clientNameLabel: 'Nome do Cliente / Empresa',
+    industryLabel: 'Setor / Indústria',
+    objectiveLabel: 'Objetivo Comercial',
+    authorLabel: 'Autor / Arquiteto de Soluções',
+    saveProjectInfo: 'Salvar Detalhes do Projeto',
+
+    // Industries
+    indEcommerce: 'E-commerce e Varejo',
+    indHealth: 'Saúde e Medicina',
+    indFinancial: 'Serviços Financeiros e Bancos',
+    indRealEstate: 'Imobiliário e Real Estate',
+    indEducation: 'Educação e Cursos',
+    indRetail: 'Varejo e Comércio',
+    indOther: 'Outro Setor',
+
+    // Projects & Templates
+    myProjects: 'Meus Projetos',
+    createProject: 'Criar Novo Projeto',
+    searchPlaceholder: 'Buscar projetos ou fluxos...',
+    templatesTitle: 'Modelos Pré-definidos',
+    templatesDesc: 'Acelere o design com fluxos aprovados pela indústria.',
+    loadTemplateBtn: 'Carregar Fluxo',
+
+    // Node Inspector
+    inspectorTitle: 'Inspetor de Nó',
+    nodeTypeLabel: 'Tipo de Nó',
+    nodeTitleInput: 'Título do Nó',
+    nodeDescInput: 'Descrição / Conteúdo',
+    buttonOptionsLabel: 'Opções de Botões / Saídas',
+    addOptionBtn: 'Adicionar Opção',
+    fieldNameLabel: 'Nome da Variável',
+    commentsLabel: 'Comentários e Notas',
+    commentsPlaceholder: 'Escreva notas técnicas ou esclarecimentos...',
+    deleteNodeBtn: 'Excluir Nó',
+
+    // Ficha Tecnica Modal
+    specModalTitle: 'Ficha Técnica Oficial do Projeto (Gerada por IA)',
+    specModalSubtitle: 'Especificação técnica arquitetônica pronta para apresentação.',
+    specGenerateBtn: 'Gerar Ficha Técnica com IA',
+    specCopyBtn: 'Copiar Ficha Técnica',
+    specCopied: 'Copiado!',
+    specRegenerateBtn: 'Regerar Documento',
+    copyClientSummaryBtn: 'Copiar Resumo para Cliente',
+    downloadFlowJsonBtn: 'Baixar JSON do Fluxo',
+    exportFlowBuilderBtn: 'Exportar para FlowBuilder',
+    generatingSpecMsg: 'Gerando especificação técnica estruturada com Gemini AI...',
+
+    // WhatsApp Simulator
+    simTitle: 'Simulador WhatsApp Live',
+    simStatus: 'Online (Simulador Live)',
+    simRestartTooltip: 'Reiniciar Simulação',
+    simInputPlaceholder: 'Digite uma mensagem...',
+    simNoNodesMsg: 'O diagrama não possui nós para simular.',
+    simEndMsg: 'Fim do fluxo interativo.',
+
+    // FlowPlan Export
+    exportTitle: 'Exportação do FlowPlan JSON',
+    exportSubtitle: 'Estrutura padrão compatível com o Atom Engine.',
+    exportValidityMsg: 'Validade do Esquema: {nodes} Nós & {edges} Conexões',
+    copyJsonBtn: 'Copiar JSON',
+    downloadJsonBtn: 'Baixar .json',
+
+    // AI Assistant Modal
+    aiModalTitle: 'Assistente de Design Gemini AI',
+    aiModalSubtitle: 'Peça otimizações, geração de prompts ou criação de fluxos.',
+    aiInputPlaceholder: "Ex: 'Crie um fluxo para agendamento de consultas médicas'...",
+    aiGenerateBtn: 'Gerar',
+    aiQuickSuggestions: 'Sugestões rápidas:',
+    aiQuickOpt1: '+ Recuperação de timeout',
+    aiQuickOpt2: '+ Fluxo Suporte Técnico',
+    aiQuickOpt3: '+ Mensagens mais curtas',
+    aiThinkingMsg: 'Gemini AI criando fluxo e estrutura...',
+    aiRecommendationsTitle: 'Recomendações do Assistente:',
+    aiFlowGeneratedMsg: 'Estrutura gerada com {count} novos nós.',
+    aiApplyToCanvasBtn: 'Aplicar na Tela',
+
+    // Comments / Misc
+    commentsDrawerTitle: 'Comentários do Fluxo',
+    addCommentPlaceholder: 'Escreva um comentário para este nó...',
+  },
 };
 
-// ── Context ──
-interface I18nContextType {
+interface LanguageContextType {
   lang: Language;
-  setLang: (l: Language) => void;
-  t: (key: string, ...args: string[]) => string;
+  setLang: (lang: Language) => void;
+  t: (key: keyof Translations, params?: Record<string, string | number>) => string;
 }
 
-const I18nContext = createContext<I18nContextType>({
-  lang: 'es',
-  setLang: () => {},
-  t: (key: string) => key,
-});
+const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
-export function I18nProvider({ children }: { children: React.ReactNode }) {
+export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [lang, setLangState] = useState<Language>(() => {
-    const stored = typeof window !== 'undefined' ? localStorage.getItem(LANG_KEY) : null;
-    return (stored as Language) || 'es';
+    const saved = localStorage.getItem('atom_lang');
+    if (saved === 'es' || saved === 'en' || saved === 'pt') {
+      return saved as Language;
+    }
+    return 'es';
   });
 
-  const setLang = useCallback((l: Language) => {
-    setLangState(l);
-    localStorage.setItem(LANG_KEY, l);
-  }, []);
+  const setLang = (newLang: Language) => {
+    setLangState(newLang);
+    localStorage.setItem('atom_lang', newLang);
+  };
 
-  const t = useCallback((key: string, ...args: string[]) => {
-    const entry = translations[key];
-    let str = entry ? (entry[lang] || entry['es'] || key) : key;
-    args.forEach((a, i) => { str = str.replace(`{${i}}`, a); });
-    return str;
-  }, [lang]);
+  const t = (key: keyof Translations, params?: Record<string, string | number>): string => {
+    let text = translations[lang]?.[key] || translations['es']?.[key] || key;
+    if (params) {
+      Object.entries(params).forEach(([pKey, pValue]) => {
+        text = text.replace(`{${pKey}}`, String(pValue));
+      });
+    }
+    return text;
+  };
 
   return (
-    <I18nContext.Provider value={{ lang, setLang, t }}>
+    <LanguageContext.Provider value={{ lang, setLang, t }}>
       {children}
-    </I18nContext.Provider>
+    </LanguageContext.Provider>
   );
-}
+};
 
-export function useI18n() {
-  return useContext(I18nContext);
-}
-
-// For non-React usage
-export { translations };
+export const useLanguage = (): LanguageContextType => {
+  const context = useContext(LanguageContext);
+  if (!context) {
+    throw new Error('useLanguage must be used within a LanguageProvider');
+  }
+  return context;
+};

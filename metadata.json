@@ -1,6 +1,6 @@
 {
   "name": "Atom Scope Builder",
-  "description": "Herramienta visual colaborativa para mapear flujos de chatbots de WhatsApp y generar fichas técnicas con IA.",
+  "description": "Herramienta visual e interactiva para mapear flujos de chatbots de WhatsApp, exportar FlowPlans JSON y generar fichas técnicas con Inteligencia Artificial.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
