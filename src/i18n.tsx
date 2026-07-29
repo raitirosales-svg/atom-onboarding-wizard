@@ -55,6 +55,36 @@ export interface Translations {
   nodeJumpDesc: string;
   nodeFormatLabel: string;
   nodeFormatDesc: string;
+    nodeEvalOptions: 'Opções de Botão:',
+    nodeEvalTimeout: 'Sem resposta (Timeout)',
+    nodeSmartonIntents: 'Intenções Detectadas:',
+    nodeCrmSuccess: 'Sucesso (200 OK)',
+    nodeCrmFailure: 'Falha (Erro API)',
+    nodeDelayText: 'Aguardar {0} minutos',
+    nodeFieldLabel: 'Campo:',
+    nodeEvalOptions: 'Button Options:',
+    nodeEvalTimeout: 'No response (Timeout)',
+    nodeSmartonIntents: 'Detected Intents:',
+    nodeCrmSuccess: 'Success (200 OK)',
+    nodeCrmFailure: 'Failed (API Error)',
+    nodeDelayText: 'Wait {0} minutes',
+    nodeFieldLabel: 'Field:',
+    nodeEvalOptions: 'Opciones de Botón:',
+    nodeEvalTimeout: 'Sin respuesta (Timeout)',
+    nodeSmartonIntents: 'Intenciones Detectadas:',
+    nodeCrmSuccess: 'Exitosa (200 OK)',
+    nodeCrmFailure: 'Fallida (Error API)',
+    nodeDelayText: 'Esperar {0} minutos',
+    nodeFieldLabel: 'Campo:',
+
+  // Node display text (inline labels on canvas nodes)
+  nodeEvalOptions: string;
+  nodeEvalTimeout: string;
+  nodeSmartonIntents: string;
+  nodeCrmSuccess: string;
+  nodeCrmFailure: string;
+  nodeDelayText: string;
+  nodeFieldLabel: string;
 
   // Project Metadata Form
   projectMetadataTitle: string;
@@ -194,6 +224,27 @@ export const translations: Record<Language, Translations> = {
     nodeJumpDesc: 'Redirige a otro bloque o submÃ³dulo del diagrama.',
     nodeFormatLabel: 'Formatear Dato',
     nodeFormatDesc: 'Transforma cadenas de texto, nÃºmeros o fechas.',
+    nodeEvalOptions: 'Opções de Botão:',
+    nodeEvalTimeout: 'Sem resposta (Timeout)',
+    nodeSmartonIntents: 'Intenções Detectadas:',
+    nodeCrmSuccess: 'Sucesso (200 OK)',
+    nodeCrmFailure: 'Falha (Erro API)',
+    nodeDelayText: 'Aguardar {0} minutos',
+    nodeFieldLabel: 'Campo:',
+    nodeEvalOptions: 'Button Options:',
+    nodeEvalTimeout: 'No response (Timeout)',
+    nodeSmartonIntents: 'Detected Intents:',
+    nodeCrmSuccess: 'Success (200 OK)',
+    nodeCrmFailure: 'Failed (API Error)',
+    nodeDelayText: 'Wait {0} minutes',
+    nodeFieldLabel: 'Field:',
+    nodeEvalOptions: 'Opciones de Botón:',
+    nodeEvalTimeout: 'Sin respuesta (Timeout)',
+    nodeSmartonIntents: 'Intenciones Detectadas:',
+    nodeCrmSuccess: 'Exitosa (200 OK)',
+    nodeCrmFailure: 'Fallida (Error API)',
+    nodeDelayText: 'Esperar {0} minutos',
+    nodeFieldLabel: 'Campo:',
 
     // Project Metadata
     projectMetadataTitle: 'InformaciÃ³n General del Proyecto',
@@ -332,6 +383,27 @@ export const translations: Record<Language, Translations> = {
     nodeJumpDesc: 'Redirects to another sub-module or diagram node.',
     nodeFormatLabel: 'Format Data',
     nodeFormatDesc: 'Transforms string text, numbers, or dates.',
+    nodeEvalOptions: 'Opções de Botão:',
+    nodeEvalTimeout: 'Sem resposta (Timeout)',
+    nodeSmartonIntents: 'Intenções Detectadas:',
+    nodeCrmSuccess: 'Sucesso (200 OK)',
+    nodeCrmFailure: 'Falha (Erro API)',
+    nodeDelayText: 'Aguardar {0} minutos',
+    nodeFieldLabel: 'Campo:',
+    nodeEvalOptions: 'Button Options:',
+    nodeEvalTimeout: 'No response (Timeout)',
+    nodeSmartonIntents: 'Detected Intents:',
+    nodeCrmSuccess: 'Success (200 OK)',
+    nodeCrmFailure: 'Failed (API Error)',
+    nodeDelayText: 'Wait {0} minutes',
+    nodeFieldLabel: 'Field:',
+    nodeEvalOptions: 'Opciones de Botón:',
+    nodeEvalTimeout: 'Sin respuesta (Timeout)',
+    nodeSmartonIntents: 'Intenciones Detectadas:',
+    nodeCrmSuccess: 'Exitosa (200 OK)',
+    nodeCrmFailure: 'Fallida (Error API)',
+    nodeDelayText: 'Esperar {0} minutos',
+    nodeFieldLabel: 'Campo:',
 
     // Project Metadata
     projectMetadataTitle: 'Project Information',
@@ -470,6 +542,27 @@ export const translations: Record<Language, Translations> = {
     nodeJumpDesc: 'Redireciona para outro bloco do diagrama.',
     nodeFormatLabel: 'Formatar Dado',
     nodeFormatDesc: 'Transforma textos, nÃºmeros ou datas.',
+    nodeEvalOptions: 'Opções de Botão:',
+    nodeEvalTimeout: 'Sem resposta (Timeout)',
+    nodeSmartonIntents: 'Intenções Detectadas:',
+    nodeCrmSuccess: 'Sucesso (200 OK)',
+    nodeCrmFailure: 'Falha (Erro API)',
+    nodeDelayText: 'Aguardar {0} minutos',
+    nodeFieldLabel: 'Campo:',
+    nodeEvalOptions: 'Button Options:',
+    nodeEvalTimeout: 'No response (Timeout)',
+    nodeSmartonIntents: 'Detected Intents:',
+    nodeCrmSuccess: 'Success (200 OK)',
+    nodeCrmFailure: 'Failed (API Error)',
+    nodeDelayText: 'Wait {0} minutes',
+    nodeFieldLabel: 'Field:',
+    nodeEvalOptions: 'Opciones de Botón:',
+    nodeEvalTimeout: 'Sin respuesta (Timeout)',
+    nodeSmartonIntents: 'Intenciones Detectadas:',
+    nodeCrmSuccess: 'Exitosa (200 OK)',
+    nodeCrmFailure: 'Fallida (Error API)',
+    nodeDelayText: 'Esperar {0} minutos',
+    nodeFieldLabel: 'Campo:',
 
     // Project Metadata
     projectMetadataTitle: 'InformaÃ§Ãµes do Projeto',
