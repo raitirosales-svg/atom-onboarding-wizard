@@ -22,11 +22,20 @@ export const FlowPlanExportModal: React.FC<FlowPlanExportModalProps> = ({
 }) => {
   const { t } = useLanguage();
   const [copied, setCopied] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
-  const flowPlanObj = convertCanvasToFlowPlan(nodes, edges, projectMeta.name);
-  const jsonString = JSON.stringify(flowPlanObj, null, 2);
+  let flowPlanObj;
+  let jsonString;
+  try {
+    flowPlanObj = convertCanvasToFlowPlan(nodes, edges, projectMeta.name);
+    jsonString = JSON.stringify(flowPlanObj, null, 2);
+  } catch (e: any) {
+    if (!error) setError(e.message || 'Error al generar el flow plan');
+    flowPlanObj = { nodes: [], edges: [] };
+    jsonString = 'Error al generar el JSON';
+  }
 
   const handleCopy = () => {
     navigator.clipboard.writeText(jsonString);
@@ -73,7 +82,7 @@ export const FlowPlanExportModal: React.FC<FlowPlanExportModalProps> = ({
         <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-6 py-3 dark:border-slate-800 dark:bg-slate-950">
           <div className="flex items-center gap-2 text-xs font-semibold text-[var(--atom-orange)] dark:text-orange-400">
             <CheckCircle className="h-4 w-4" />
-            <span>{t('exportValidityMsg', { nodes: flowPlanObj.nodes.length, edges: flowPlanObj.edges.length })}</span>
+            <span>{nodes.length === 0 ? 'No hay nodos en el canvas. Agrega al menos un nodo para exportar.' : t('exportValidityMsg', { nodes: flowPlanObj.nodes.length, edges: flowPlanObj.edges.length })}</span>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -94,6 +103,12 @@ export const FlowPlanExportModal: React.FC<FlowPlanExportModalProps> = ({
 
         {/* Code Container */}
         <div className="flex-1 overflow-y-auto p-6">
+          {error && (
+            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
+              <strong>Error:</strong> {error}
+              <p className="mt-1 text-xs">Asegúrate de tener al menos un nodo en el canvas y que el proyecto tenga nombre.</p>
+            </div>
+          )}
           <pre className="rounded-xl border border-slate-200 bg-slate-950 p-4 font-mono text-xs text-orange-400 overflow-x-auto selection:bg-orange-950 selection:text-white">
             {jsonString}
           </pre>
