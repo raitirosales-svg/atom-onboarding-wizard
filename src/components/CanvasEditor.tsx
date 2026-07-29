@@ -485,7 +485,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
       <header
         className="h-16 bg-white border-b border-slate-200 px-4 flex items-center justify-between shrink-0 shadow-2xs z-20"
         style={{
-          borderTop: `3px solid ${project.brandColor || '#2563EB'}`,
+          borderTop: `3px solid ${project.brandColor || '#FF6600'}`,
         }}
       >
         {/* Left Info */}
@@ -653,12 +653,13 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
             <span className="hidden sm:inline">{t('btnSave')}</span>
           </button>
 
-          {/* Generar Ficha Técnica */}
+          {/* Generar Ficha Técnica + FlowPlan Export */}
           <button
             onClick={() => setShowSpecModal(true)}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-md hover:shadow-lg transition-all"
+            className="px-4 py-2 bg-atom-orange hover:bg-atom-orange-hover text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-md hover:shadow-lg transition-all"
+            title="Ficha Técnica + Export FlowPlan"
           >
-            <Sparkles className="w-4 h-4" />
+            <Sparkles className="w-4 h-4 text-white" />
             <span>{t('btnGenerateSpec')}</span>
           </button>
         </div>
@@ -787,6 +788,9 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
         <FichaTecnicaModal
           project={project}
           currentVersion={activeVersion}
+          liveNodes={nodes}
+          liveEdges={edges}
+          liveComments={allComments}
           onClose={() => setShowSpecModal(false)}
         />
       )}

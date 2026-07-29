@@ -17,6 +17,11 @@
   --atom-border: #BDD7E9;
 }
 
+body {
+  background-color: var(--atom-light);
+  color: #0f172a;
+}
+
 .react-flow__node {
   border-radius: 0.75rem;
 }

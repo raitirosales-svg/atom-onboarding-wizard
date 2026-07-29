@@ -1,15 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { X, Copy, Check, Download, RefreshCw, FileText, Sparkles, UserCheck } from 'lucide-react';
+import { generateFallbackSpec } from '../lib/generateFallbackSpec';
+import { canvasToFlowPlan, downloadJson } from '../lib/canvasToFlowPlan';
 
 interface FichaTecnicaModalProps {
   project: any;
   currentVersion: any;
+  liveNodes?: any[];
+  liveEdges?: any[];
+  liveComments?: any[];
   onClose: () => void;
 }
 
 export const FichaTecnicaModal: React.FC<FichaTecnicaModalProps> = ({
   project,
   currentVersion,
+  liveNodes,
+  liveEdges,
+  liveComments,
   onClose,
 }) => {
   const [loading, setLoading] = useState(true);
@@ -18,37 +26,49 @@ export const FichaTecnicaModal: React.FC<FichaTecnicaModalProps> = ({
   const [copiedFull, setCopiedFull] = useState(false);
   const [copiedClient, setCopiedClient] = useState(false);
 
+  const nodes = liveNodes ?? currentVersion.nodes ?? [];
+  const edges = liveEdges ?? currentVersion.edges ?? [];
+  const comments = liveComments ?? currentVersion.comments ?? [];
+
+  const buildPayload = () => ({
+    clientName: project.name,
+    industry: project.industry,
+    version: currentVersion.versionLabel || `v${project.currentVersionNumber}`,
+    contexto: project.contexto,
+    flow: {
+      nodes,
+      edges,
+      comments,
+    },
+  });
+
   const fetchSpec = async () => {
     setLoading(true);
-    try {
-      const payload = {
-        clientName: project.name,
-        industry: project.industry,
-        version: currentVersion.versionLabel || `v${project.currentVersionNumber}`,
-        contexto: project.contexto,
-        flow: {
-          nodes: currentVersion.nodes || [],
-          edges: currentVersion.edges || [],
-          comments: currentVersion.comments || [],
-        },
-      };
+    setWarning('');
+    const payload = buildPayload();
 
+    try {
       const res = await fetch('/api/generate-spec', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
 
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
       const data = await res.json();
       if (data.specMarkdown) {
         setSpecMarkdown(data.specMarkdown);
       } else {
-        setSpecMarkdown('# Error al generar la Ficha Técnica');
+        setSpecMarkdown(generateFallbackSpec(payload));
+        setWarning('Respuesta incompleta del servidor. Se usó motor local.');
       }
       if (data.warning) setWarning(data.warning);
-    } catch (err: any) {
-      console.error(err);
-      setSpecMarkdown('# Error en la comunicación con el servidor');
+    } catch {
+      setSpecMarkdown(generateFallbackSpec(payload));
+      setWarning(
+        'API no disponible (GitHub Pages / sin servidor). Ficha generada localmente con el motor estructurado.'
+      );
     } finally {
       setLoading(false);
     }
@@ -64,56 +84,77 @@ export const FichaTecnicaModal: React.FC<FichaTecnicaModalProps> = ({
     setTimeout(() => setCopiedFull(false), 2500);
   };
 
-  const handleCopyClientSummary = () => {
-    // Extract section 7: "Resumen de acuerdos para el cliente"
-    const sectionMarker = '## 7. Resumen de acuerdos para el cliente';
-    let clientText = specMarkdown;
-    if (specMarkdown.includes(sectionMarker)) {
-      clientText = specMarkdown.split(sectionMarker)[1]?.trim() || specMarkdown;
+  const extractClientSummary = (md: string) => {
+    const markers = [
+      '## 8. Resumen de Acuerdos para el Cliente',
+      '## 8. Resumen de acuerdos para el cliente',
+      '## 7. Resumen de acuerdos para el cliente',
+      '## 7. Resumen de Acuerdos para el Cliente',
+    ];
+    for (const marker of markers) {
+      if (md.includes(marker)) {
+        return md.split(marker)[1]?.trim() || md;
+      }
     }
+    return md;
+  };
+
+  const handleCopyClientSummary = () => {
+    const clientText = extractClientSummary(specMarkdown);
     navigator.clipboard.writeText(clientText);
     setCopiedClient(true);
     setTimeout(() => setCopiedClient(false), 2500);
   };
 
+  const slug = project.name.toLowerCase().replace(/\s+/g, '-');
+  const ver = currentVersion.versionLabel || 'v1';
+
   const handleDownloadJSON = () => {
-    const rawData = {
+    downloadJson(`ficha-tecnica-${slug}-${ver}.json`, {
       project: {
         id: project.id,
         name: project.name,
         industry: project.industry,
         brandColor: project.brandColor,
-        version: currentVersion.versionLabel,
+        logo: project.logo ? '[base64 omitted in export metadata]' : undefined,
+        version: ver,
+        contexto: project.contexto,
       },
-      flow: {
-        nodes: currentVersion.nodes,
-        edges: currentVersion.edges,
-        comments: currentVersion.comments,
-      },
+      flow: { nodes, edges, comments },
       exportedAt: new Date().toISOString(),
-    };
+    });
+  };
 
-    const blob = new Blob([JSON.stringify(rawData, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `ficha-tecnica-${project.name.toLowerCase().replace(/\s+/g, '-')}-${currentVersion.versionLabel || 'v1'}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const handleDownloadFlowPlan = () => {
+    if (!nodes.length) {
+      alert('El canvas está vacío. Agrega nodos antes de exportar FlowPlan.');
+      return;
+    }
+    const plan = canvasToFlowPlan({
+      nodes,
+      edges,
+      comments,
+      contexto: project.contexto,
+      project: {
+        name: project.name,
+        industry: project.industry,
+        brandColor: project.brandColor,
+      },
+    });
+    downloadJson(`flow_plan-${slug}-${ver}.json`, plan);
   };
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden border border-slate-200">
-        {/* Modal Header */}
         <div
           className="p-5 border-b border-slate-200 flex items-center justify-between"
-          style={{ backgroundColor: `${project.brandColor}10` }}
+          style={{ backgroundColor: `${project.brandColor || '#FF6600'}10` }}
         >
           <div className="flex items-center gap-3">
             <div
               className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-md font-bold text-lg"
-              style={{ backgroundColor: project.brandColor || '#2563EB' }}
+              style={{ backgroundColor: project.brandColor || '#FF6600' }}
             >
               <FileText className="w-5 h-5" />
             </div>
@@ -122,8 +163,8 @@ export const FichaTecnicaModal: React.FC<FichaTecnicaModalProps> = ({
                 <h2 className="text-lg font-extrabold text-slate-900">
                   Ficha Técnica de Implementación
                 </h2>
-                <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-blue-100 text-blue-800">
-                  {currentVersion.versionLabel || 'v1'}
+                <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-orange-100 text-orange-800">
+                  {ver}
                 </span>
               </div>
               <p className="text-xs text-slate-500">
@@ -140,13 +181,12 @@ export const FichaTecnicaModal: React.FC<FichaTecnicaModalProps> = ({
           </button>
         </div>
 
-        {/* Action Toolbar */}
         <div className="bg-slate-50 px-5 py-3 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={handleCopyFull}
               disabled={loading}
-              className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg flex items-center gap-1.5 transition-colors shadow-xs"
+              className="px-3.5 py-2 bg-atom-orange hover:bg-atom-orange-hover text-white font-bold rounded-lg flex items-center gap-1.5 transition-colors shadow-xs"
             >
               {copiedFull ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
               {copiedFull ? '¡Copiado!' : 'Copiar ficha técnica (Markdown)'}
@@ -162,28 +202,37 @@ export const FichaTecnicaModal: React.FC<FichaTecnicaModalProps> = ({
             </button>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={handleDownloadJSON}
               disabled={loading}
               className="px-3 py-2 border border-slate-300 hover:bg-slate-200 text-slate-700 font-bold rounded-lg flex items-center gap-1.5 transition-colors"
             >
               <Download className="w-4 h-4" />
-              Descargar JSON del flujo
+              JSON del flujo
+            </button>
+
+            <button
+              onClick={handleDownloadFlowPlan}
+              disabled={loading}
+              className="px-3 py-2 border border-orange-300 bg-orange-50 hover:bg-orange-100 text-orange-900 font-bold rounded-lg flex items-center gap-1.5 transition-colors"
+              title="Exporta flow_plan.json compatible con FlowBuilder"
+            >
+              <Download className="w-4 h-4" />
+              FlowPlan JSON
             </button>
 
             <button
               onClick={fetchSpec}
               disabled={loading}
               className="p-2 border border-slate-300 hover:bg-slate-200 text-slate-700 font-bold rounded-lg flex items-center justify-center transition-colors"
-              title="Regenerar con IA"
+              title="Regenerar"
             >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-blue-600' : ''}`} />
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-orange-600' : ''}`} />
             </button>
           </div>
         </div>
 
-        {/* Warning banner if any */}
         {warning && (
           <div className="bg-amber-50 text-amber-800 text-xs px-5 py-2 border-b border-amber-200 flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
@@ -191,15 +240,12 @@ export const FichaTecnicaModal: React.FC<FichaTecnicaModalProps> = ({
           </div>
         )}
 
-        {/* Document content */}
         <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50">
           {loading ? (
             <div className="py-20 text-center space-y-4">
-              <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
+              <div className="w-12 h-12 border-4 border-atom-orange border-t-transparent rounded-full animate-spin mx-auto" />
               <div className="space-y-1">
-                <p className="font-bold text-slate-800 text-base">
-                  Generando Ficha Técnica con Inteligencia Artificial...
-                </p>
+                <p className="font-bold text-slate-800 text-base">Generando Ficha Técnica...</p>
                 <p className="text-xs text-slate-500">
                   Analizando estructura del flujo, nodos de integración, variables y acuerdos.
                 </p>

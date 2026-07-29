@@ -33,7 +33,8 @@ jobs:
       - run: npm run build
         env:
           BASE_URL: /atom-onboarding-wizard/
-          VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
+          # Ficha Técnica en Pages usa motor local (sin API). Gemini solo aplica con server Node.
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
       - uses: actions/configure-pages@v4
 

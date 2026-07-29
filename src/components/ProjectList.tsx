@@ -59,15 +59,15 @@ export const ProjectList: React.FC<ProjectListProps> = ({
       <header className="bg-white border-b border-slate-200 sticky top-0 z-20 shadow-2xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-3 w-full sm:w-auto">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-700 to-indigo-600 flex items-center justify-center text-white shadow-md font-black text-xl shrink-0">
-              <Bot className="w-6 h-6" />
+            <div className="w-10 h-10 rounded-xl bg-atom-navy flex items-center justify-center text-white shadow-md font-black text-xl shrink-0">
+              <Bot className="w-6 h-6 text-atom-orange" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-black text-slate-900 tracking-tight">
                   {t('appTitle')}
                 </h1>
-                <span className="text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
+                <span className="text-[10px] font-bold uppercase tracking-wider bg-orange-100 text-atom-orange px-2 py-0.5 rounded-full">
                   Onboarding Specialist
                 </span>
               </div>
@@ -126,7 +126,7 @@ export const ProjectList: React.FC<ProjectListProps> = ({
 
             <button
               onClick={onOpenNewProjectModal}
-              className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl flex items-center gap-2 shadow-md hover:shadow-lg transition-all shrink-0"
+              className="px-4 py-2.5 bg-atom-orange hover:bg-atom-orange-hover text-white font-bold text-xs rounded-xl flex items-center gap-2 shadow-md hover:shadow-lg transition-all shrink-0"
             >
               <Plus className="w-4 h-4" />
               <span>{t('btnNewProject')}</span>
@@ -138,9 +138,9 @@ export const ProjectList: React.FC<ProjectListProps> = ({
       {/* Main Content */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         {/* Banner callout */}
-        <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-900 rounded-2xl p-6 text-white shadow-xl relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-6 border border-slate-800">
+        <div className="bg-gradient-to-r from-atom-navy via-atom-navy-light to-atom-navy rounded-2xl p-6 text-white shadow-xl relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-6 border border-atom-border/20">
           <div className="space-y-2 max-w-2xl">
-            <div className="flex items-center gap-2 text-blue-300 text-xs font-bold uppercase tracking-widest">
+            <div className="flex items-center gap-2 text-atom-orange text-xs font-bold uppercase tracking-widest">
               <Sparkles className="w-4 h-4 text-amber-400" />
               {t('heroTag')}
             </div>
