@@ -1,12 +1,7 @@
 import React from 'react';
 import {
-  FileText,
-  Play,
-  Download,
-  Sparkles,
-  Layers,
-  GitCommit,
-  Globe,
+  FileText, Play, Download, Sparkles, Layers, GitCommit, Globe,
+  Plus, Undo2,
 } from 'lucide-react';
 import { ProjectMetadata } from '../types';
 import { useLanguage, Language } from '../i18n';
@@ -20,6 +15,9 @@ interface HeaderProps {
   onOpenSimulator: () => void;
   onOpenExportModal: () => void;
   onOpenAiSuggestions: () => void;
+  onNewProject: () => void;
+  onUndo: () => void;
+  canUndo: boolean;
 }
 
 const AtomLogoIcon = ({ className = "h-9 w-9" }: { className?: string }) => (
@@ -57,14 +55,9 @@ const AtomLogoIcon = ({ className = "h-9 w-9" }: { className?: string }) => (
 );
 
 export const Header: React.FC<HeaderProps> = ({
-  projectMeta,
-  onUpdateProjectMeta,
-  nodeCount,
-  edgeCount,
-  onOpenFichaTecnica,
-  onOpenSimulator,
-  onOpenExportModal,
-  onOpenAiSuggestions,
+  projectMeta, onUpdateProjectMeta, nodeCount, edgeCount,
+  onOpenFichaTecnica, onOpenSimulator, onOpenExportModal, onOpenAiSuggestions,
+  onNewProject, onUndo, canUndo,
 }) => {
   const { lang, setLang, t } = useLanguage();
 
@@ -110,7 +103,22 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Language Selector & Action Buttons */}
       <div className="flex items-center gap-2.5">
-        {/* Language Selector Pill Group */}
+        {/* Undo */}
+        <button onClick={onUndo} disabled={!canUndo}
+          className={`p-1.5 rounded-lg transition-colors ${canUndo ? 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800' : 'text-slate-300 dark:text-slate-700 cursor-not-allowed'}`}
+          title="Deshacer (Ctrl+Z)">
+          <Undo2 className="h-4 w-4" />
+        </button>
+
+        {/* New Project */}
+        <button onClick={onNewProject}
+          className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 transition-colors hover:border-[var(--atom-orange)] hover:text-[var(--atom-orange)] dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400"
+          title="Nuevo Proyecto">
+          <Plus className="h-3.5 w-3.5" />
+          <span>Nuevo</span>
+        </button>
+
+        {/* Language Selector */}
         <div className="flex items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5 dark:border-slate-800 dark:bg-slate-900">
           {languages.map((item) => (
             <button
