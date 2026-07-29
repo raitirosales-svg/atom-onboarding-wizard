@@ -3,7 +3,7 @@ import { Handle, Position, NodeProps } from '@xyflow/react';
 import {
   MessageSquare, FileText, MousePointerClick, GitBranch,
   CornerDownRight, CheckCircle2, Clock, Database,
-  Sparkles, Type, Tag, Kanban, Users, Globe, Trash2, Copy,
+  Sparkles, Type, Tag, Kanban, Users, Globe,
 } from 'lucide-react';
 import { WhatsAppNodeData, NodeType } from '../types';
 import { useLanguage } from '../i18n';
@@ -17,7 +17,7 @@ interface NodeStyleConfig {
   textColor: string;
 }
 
-function getNodeConfigs(t: (key: string, ...args: string[]) => string): Record<NodeType, NodeStyleConfig> {
+function getNodeConfigs(): Record<NodeType, NodeStyleConfig> {
   return {
     message: {
       icon: MessageSquare,
@@ -138,7 +138,7 @@ export const CustomWhatsAppNode = memo(({ id, data, selected }: NodeProps) => {
   const { t } = useLanguage();
   const nodeData = data as WhatsAppNodeData;
   const nodeType = nodeData.nodeType || 'message';
-  const configs = getNodeConfigs(t);
+  const configs = getNodeConfigs();
   const styleConfig = configs[nodeType] || configs.message;
   const IconComponent = styleConfig.icon;
   const typeLabel = t(styleConfig.labelKey);
@@ -201,7 +201,7 @@ export const CustomWhatsAppNode = memo(({ id, data, selected }: NodeProps) => {
         {nodeType === 'delay' && (
           <div className="mt-2 flex items-center gap-1.5 text-sky-700 dark:text-sky-300">
             <Clock className="h-3.5 w-3.5" />
-            <span>{t('nodeDelayText', String(nodeData.delayMinutes || 5))}</span>
+            <span>{t('nodeDelayText', { 0: nodeData.delayMinutes || 5 })}</span>
           </div>
         )}
 
