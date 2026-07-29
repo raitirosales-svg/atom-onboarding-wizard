@@ -185,7 +185,7 @@ export default function App() {
         userEmail={userEmail}
       />
       <div className="flex flex-1 overflow-hidden">
-        <SidebarNodePalette onAddNode={handleAddNode} projectMeta={projectMeta} onUpdateProjectMeta={setProjectMeta} />
+        <SidebarNodePalette onAddNode={handleAddNode} />
         <main className="relative flex-1 bg-[var(--atom-light)] dark:bg-slate-900">
           {nodes.length === 0 && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
