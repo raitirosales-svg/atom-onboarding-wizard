@@ -83,6 +83,7 @@ function apiPlugin(): Plugin {
 
 export default defineConfig(() => {
   return {
+    base: process.env.BASE_URL || '/',
     plugins: [react(), tailwindcss(), apiPlugin()],
     resolve: {
       alias: {
