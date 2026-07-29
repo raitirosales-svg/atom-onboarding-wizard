@@ -11,7 +11,8 @@ import { Header } from './components/Header';
 import { FlowPlanExportModal } from './components/FlowPlanExportModal';
 import { NodeType, WhatsAppNodeData, ProjectMetadata } from './types';
 import { useLanguage } from './i18n';
-import { supabase, signIn, signUp, signOut, getCurrentUser } from './utils/supabaseClient';
+import { supabase, signIn, signUp, signOut, getCurrentUser, fetchProjects, saveProject, deleteProject } from './utils/supabaseClient';
+import type { ProjectRow } from './utils/supabaseClient';
 
 const STORAGE_KEY = 'atom_scope_current_project';
 
@@ -54,7 +55,9 @@ export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userEmail, setUserEmail] = useState('');
   const [authLoading, setAuthLoading] = useState(true);
-  const [showSetup, setShowSetup] = useState(!saved || !saved.meta?.clientName);
+  const [showSetup, setShowSetup] = useState(false);
+  const [projectId, setProjectId] = useState<string | null>(null);
+  const [showProjectList, setShowProjectList] = useState(false);
 
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<WhatsAppNodeData>>(saved?.nodes || []);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(saved?.edges || []);
@@ -66,6 +69,30 @@ export default function App() {
     historyRef.current.push({ nodes: JSON.parse(JSON.stringify(nodes)), edges: JSON.parse(JSON.stringify(edges)) });
     if (historyRef.current.length > 50) historyRef.current.shift();
   }, [nodes, edges]);
+
+  // Auto-save to Supabase (debounced)
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    clearTimeout(saveTimeoutRef.current);
+    saveTimeoutRef.current = setTimeout(async () => {
+      try {
+        const newId = await saveProject({
+          id: projectId || undefined,
+          name: projectMeta.name,
+          client_name: projectMeta.clientName,
+          industry: projectMeta.industry,
+          objective: projectMeta.objective,
+          description: projectMeta.description,
+          author: projectMeta.author,
+          nodes: nodes as any[],
+          edges: edges as any[],
+        });
+        if (newId && !projectId) setProjectId(newId);
+      } catch (e) { /* silent */ }
+    }, 2000);
+    return () => clearTimeout(saveTimeoutRef.current);
+  }, [nodes, edges, projectMeta, isLoggedIn]);
 
   useEffect(() => { if (isLoggedIn) saveProject(nodes, edges, projectMeta); }, [nodes, edges, projectMeta, isLoggedIn]);
 
@@ -99,8 +126,25 @@ export default function App() {
   const onPaneClick = useCallback(() => setSelectedNodeId(null), []);
 
   const handleNewProject = useCallback(() => {
-    setNodes([]); setEdges([]); setProjectMeta(defaultMeta);
-    setShowSetup(true); setSelectedNodeId(null);
+    setShowProjectList(true);
+  }, []);
+
+  const handleOpenProject = useCallback((p: ProjectRow) => {
+    setNodes(p.nodes || []);
+    setEdges(p.edges || []);
+    setProjectMeta({ name: p.name, clientName: p.client_name, description: p.description, industry: p.industry, objective: p.objective, author: p.author });
+    setProjectId(p.id);
+    setShowProjectList(false);
+    setShowSetup(false);
+    setSelectedNodeId(null);
+  }, [setNodes, setEdges]);
+
+  const handleCreateNewAndSetup = useCallback(() => {
+    setNodes([]); setEdges([]);
+    setProjectMeta(defaultMeta);
+    setProjectId(null);
+    setShowProjectList(false);
+    setShowSetup(true);
   }, [setNodes, setEdges]);
 
   const handleUndo = useCallback(() => {
@@ -158,12 +202,102 @@ export default function App() {
       <div className="flex min-h-screen items-center justify-center bg-[var(--atom-navy)]">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-white border-t-[var(--atom-orange)]" />
       </div>
-    );
-  }
+  );
+}
+
+// ── PROJECT LIST PAGE ──
+function ProjectListPage({ onOpenProject, onCreateNew, onLogout, userEmail, t }: {
+  onOpenProject: (p: ProjectRow) => void;
+  onCreateNew: () => void;
+  onLogout: () => void;
+  userEmail: string;
+  t: (k: string) => string;
+}) {
+  const [projects, setProjects] = useState<ProjectRow[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchProjects().then(ps => { setProjects(ps); setLoading(false); }).catch(() => setLoading(false));
+  }, []);
+
+  const handleDelete = async (id: string) => {
+    await deleteProject(id);
+    setProjects(prev => prev.filter(p => p.id !== id));
+  };
+
+  return (
+    <div className="flex min-h-screen flex-col bg-[var(--atom-light)] dark:bg-slate-950">
+      <header className="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-6 dark:border-slate-800 dark:bg-slate-950">
+        <div className="flex items-center gap-3">
+          <svg viewBox="0 0 100 100" className="h-9 w-9" fill="none">
+            <defs><linearGradient id="lg3" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#FF6000"/><stop offset="100%" stopColor="#E04800"/></linearGradient></defs>
+            <circle cx="50" cy="50" r="46" fill="url(#lg3)"/>
+            <path d="M44 41C36.268 41 30 47.268 30 55C30 58.2 31.1 61.15 32.9 63.5L30.5 70.5L37.5 68.1C39.5 69.3 41.7 70 44 70C51.732 70 58 63.732 58 55C58 47.268 51.732 41 44 41Z" fill="#FFF"/>
+            <circle cx="40" cy="54" r="2.2" fill="#0F172A"/><circle cx="48" cy="54" r="2.2" fill="#0F172A"/>
+          </svg>
+          <div>
+            <h1 className="text-lg font-extrabold text-slate-900 dark:text-white">ATOM Onboarding</h1>
+            <p className="text-xs text-slate-500">{t('myProjects') || 'Mis Proyectos'}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-slate-400">{userEmail}</span>
+          <button onClick={onLogout} className="text-xs text-slate-400 hover:text-red-500">Salir</button>
+        </div>
+      </header>
+
+      <main className="flex-1 p-8 max-w-5xl mx-auto w-full">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-bold text-slate-800 dark:text-white">{t('myProjects') || 'Mis Proyectos'}</h2>
+          <button onClick={onCreateNew}
+            className="rounded-lg bg-[var(--atom-orange)] px-5 py-2.5 text-sm font-bold text-white shadow-md transition-all hover:bg-[#e55a00] hover:shadow-lg">
+            + {t('createProject') || 'Nuevo Proyecto'}
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="flex justify-center py-20">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-[var(--atom-orange)]" />
+          </div>
+        ) : projects.length === 0 ? (
+          <div className="text-center py-20 text-slate-400">
+            <div className="text-5xl mb-4">📋</div>
+            <p className="text-lg font-semibold">No hay proyectos aún</p>
+            <p className="text-sm">Crea tu primer proyecto para empezar</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {projects.map(p => (
+              <div key={p.id}
+                className="group cursor-pointer rounded-xl border-2 border-slate-200 bg-white p-5 shadow-sm transition-all hover:border-[var(--atom-orange)] hover:shadow-md dark:border-slate-700 dark:bg-slate-900"
+                onClick={() => onOpenProject(p)}>
+                <div className="flex items-start justify-between mb-3">
+                  <h3 className="font-bold text-slate-800 dark:text-white truncate">{p.name || 'Sin nombre'}</h3>
+                  <button onClick={e => { e.stopPropagation(); handleDelete(p.id); }}
+                    className="opacity-0 group-hover:opacity-100 text-xs text-red-400 hover:text-red-600 transition-opacity">Eliminar</button>
+                </div>
+                <div className="space-y-1 text-xs text-slate-500">
+                  {p.client_name && <p>Cliente: {p.client_name}</p>}
+                  {p.industry && <p className="inline-block rounded bg-orange-100 px-2 py-0.5 text-[10px] font-semibold text-orange-700">{p.industry}</p>}
+                  <p className="mt-2 text-slate-400">{new Date(p.updated_at).toLocaleDateString()}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
 
   // ── LOGIN ──
   if (!isLoggedIn) {
     return <LoginPage onLogin={(email) => { setUserEmail(email); }} t={t} />;
+  }
+
+  // ── PROJECT LIST ──
+  if (showProjectList) {
+    return <ProjectListPage onOpenProject={handleOpenProject} onCreateNew={handleCreateNewAndSetup} onLogout={handleLogout} userEmail={userEmail} t={t} />;
   }
 
   // ── SETUP ──

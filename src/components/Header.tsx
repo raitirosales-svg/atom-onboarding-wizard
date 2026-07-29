@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, Download, Layers, GitCommit, Plus, Undo2, Settings, LogOut } from 'lucide-react';
+import { Play, Download, Layers, GitCommit, Plus, Undo2, Settings, LogOut, FolderKanban } from 'lucide-react';
 import { ProjectMetadata } from '../types';
 import { useLanguage, Language } from '../i18n';
 
@@ -78,7 +78,7 @@ export const Header: React.FC<HeaderProps> = ({
 
         <button onClick={onNewProject}
           className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 transition-colors hover:border-[var(--atom-orange)] hover:text-[var(--atom-orange)] dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400"
-          title="Nuevo Proyecto"><Plus className="h-3.5 w-3.5" /><span>Nuevo</span></button>
+          title="Mis Proyectos"><FolderKanban className="h-3.5 w-3.5" /><span>Proyectos</span></button>
 
         <button onClick={onSetup}
           className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 transition-colors hover:border-[var(--atom-orange)] hover:text-[var(--atom-orange)] dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400"
