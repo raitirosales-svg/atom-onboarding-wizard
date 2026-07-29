@@ -95,8 +95,12 @@ export const translations = {
     btnContextDrawer: 'Contexto',
     btnCommentsDrawer: 'Comentarios',
     btnGenerateSpec: 'Generar Ficha Técnica',
-    btnSave: 'Guardar',
-    
+btnSave: 'Guardar',
+    btnSaveCurrent: 'Guardar',
+    saveCurrentTitle: 'Guarda cambios en la versión actual',
+    btnSaveAsNew: 'Guardar como Nueva',
+    saveAsNewTitle: 'Crea una nueva versión vX+1',
+
     undoTooltip: 'Deshacer (Ctrl+Z)',
     redoTooltip: 'Rehacer (Ctrl+Shift+Z)',
     
@@ -136,6 +140,67 @@ export const translations = {
     
     // Toast
     savedToast: 'Cambios guardados correctamente',
+    
+    // Ficha Técnica Modal (additional)
+    specWarningIncomplete: 'Respuesta incompleta del servidor. Se usó motor local.',
+    specWarningNoApi: 'API no disponible (GitHub Pages / sin servidor). Ficha generada localmente.',
+    flowPlanEmptyAlert: 'El canvas está vacío. Agrega nodos antes de exportar FlowPlan.',
+    copied: '¡Copiado!',
+    btnCopyClientSummary: 'Copiar resumen para cliente',
+    btnDownloadJson: 'JSON del flujo',
+    flowPlanExportTitle: 'Exporta flow_plan.json compatible con FlowBuilder',
+    btnFlowPlanJson: 'FlowPlan JSON',
+    btnRegenerate: 'Regenerar',
+    specGenerating: 'Generando Ficha Técnica...',
+    specGeneratingDesc: 'Analizando estructura del flujo, nodos de integración, variables y acuerdos.',
+    
+    // Contexto Drawer
+    ctxEmptyTitle: 'No hay información de contexto registrada.',
+    ctxEmptyDesc: 'Al crear proyectos con el asistente de 3 pasos, verás aquí los objetivos acordados con el cliente.',
+    ctxToneLabel: 'Tono:',
+    ctxCompanyInfoLabel: 'Información General:',
+    ctxGoalsLabel: '¿Qué debe lograr?',
+    ctxPriorityCasesLabel: 'Casos Prioritarios:',
+    ctxWhatNotToDoLabel: 'Lo que NO debe hacer el bot:',
+    ctxHandoffLabel: 'Derivación a Humano:',
+    ctxIntegrationsLabel: 'Integraciones Esperadas:',
+    ctxSuccessEndingLabel: 'Cierre Exitoso:',
+    ctxTypificationsLabel: 'Tipificaciones Atom:',
+    ctxFunnelLabel: 'Etapas del Funnel:',
+    ctxTagsLabel: 'Etiquetas Sugeridas:',
+    
+    // Comments Drawer
+    commentsDrawerTitle: 'Comentarios y Acuerdos del Flujo',
+    commentsEmpty: 'No hay comentarios registrados',
+    commentsEmptyDesc: 'Escribe un nuevo comentario abajo o selecciona un nodo en el canvas.',
+    generalFlow: 'Flujo General',
+    node: 'Nodo',
+    by: 'Por:',
+    deleteComment: 'Eliminar comentario',
+    addComment: 'Añadir Comentario',
+    specialist: 'Especialista',
+    client: 'Cliente',
+    developer: 'Desarrollador',
+    commentPlaceholder: 'Escribe un comentario o acuerdo...',
+    
+    // Custom Node
+    integration: 'INTEGRACIÓN',
+    step: 'Paso',
+    viewComments: 'Ver / Añadir comentarios',
+    connection: 'Conexión',
+    apiConnector: 'Conector API Externa',
+    variable: 'Variable',
+    responseBranches: 'Ramas de respuesta:',
+    conditionYes: 'Sí (Cumple)',
+    conditionNo: 'No (Default)',
+    
+    // Canvas Editor
+    versionSaved: 'Versión guardada',
+    versionCreated: 'Versión creada',
+    versionLoaded: 'Cargada versión',
+    steps: 'Pasos',
+    integrations: 'Integraciones',
+    specTitleAttr: 'Ficha Técnica + Export FlowPlan',
   },
   
   EN: {
@@ -233,6 +298,10 @@ export const translations = {
     btnCommentsDrawer: 'Comments',
     btnGenerateSpec: 'Generate Tech Spec',
     btnSave: 'Save',
+    btnSaveCurrent: 'Save',
+    saveCurrentTitle: 'Save changes to current version',
+    btnSaveAsNew: 'Save as New',
+    saveAsNewTitle: 'Create a new version vX+1',
     
     undoTooltip: 'Undo (Ctrl+Z)',
     redoTooltip: 'Redo (Ctrl+Shift+Z)',
@@ -273,6 +342,67 @@ export const translations = {
     
     // Toast
     savedToast: 'Changes saved successfully',
+
+    // Ficha Técnica Modal (additional)
+    specWarningIncomplete: 'Incomplete server response. Local engine used.',
+    specWarningNoApi: 'API not available (GitHub Pages / no server). Spec generated locally.',
+    flowPlanEmptyAlert: 'Canvas is empty. Add nodes before exporting FlowPlan.',
+    copied: 'Copied!',
+    btnCopyClientSummary: 'Copy client summary',
+    btnDownloadJson: 'Flow JSON',
+    flowPlanExportTitle: 'Exports flow_plan.json compatible with FlowBuilder',
+    btnFlowPlanJson: 'FlowPlan JSON',
+    btnRegenerate: 'Regenerate',
+    specGenerating: 'Generating Tech Spec...',
+    specGeneratingDesc: 'Analyzing flow structure, integration nodes, variables and agreements.',
+    
+    // Contexto Drawer
+    ctxEmptyTitle: 'No context information recorded.',
+    ctxEmptyDesc: 'When creating projects with the 3-step wizard, you will see agreed objectives here.',
+    ctxToneLabel: 'Tone:',
+    ctxCompanyInfoLabel: 'General Information:',
+    ctxGoalsLabel: 'What should it achieve?',
+    ctxPriorityCasesLabel: 'Priority Cases:',
+    ctxWhatNotToDoLabel: 'What the bot should NOT do:',
+    ctxHandoffLabel: 'Handoff to Human:',
+    ctxIntegrationsLabel: 'Expected Integrations:',
+    ctxSuccessEndingLabel: 'Successful Ending:',
+    ctxTypificationsLabel: 'Atom Typifications:',
+    ctxFunnelLabel: 'Funnel Stages:',
+    ctxTagsLabel: 'Suggested Tags:',
+    
+    // Comments Drawer
+    commentsDrawerTitle: 'Flow Comments & Agreements',
+    commentsEmpty: 'No comments registered',
+    commentsEmptyDesc: 'Write a comment below or select a node on the canvas.',
+    generalFlow: 'General Flow',
+    node: 'Node',
+    by: 'By:',
+    deleteComment: 'Delete comment',
+    addComment: 'Add Comment',
+    specialist: 'Specialist',
+    client: 'Client',
+    developer: 'Developer',
+    commentPlaceholder: 'Write a comment or agreement...',
+    
+    // Custom Node
+    integration: 'INTEGRATION',
+    step: 'Step',
+    viewComments: 'View / Add comments',
+    connection: 'Connection',
+    apiConnector: 'External API Connector',
+    variable: 'Variable',
+    responseBranches: 'Response branches:',
+    conditionYes: 'Yes (Meets)',
+    conditionNo: 'No (Default)',
+    
+    // Canvas Editor
+    versionSaved: 'Version saved',
+    versionCreated: 'Version created',
+    versionLoaded: 'Loaded version',
+    steps: 'Steps',
+    integrations: 'Integrations',
+    specTitleAttr: 'Tech Spec + FlowPlan Export',
   },
 
   PT: {
@@ -370,6 +500,10 @@ export const translations = {
     btnCommentsDrawer: 'Comentários',
     btnGenerateSpec: 'Gerar Ficha Técnica',
     btnSave: 'Salvar',
+    btnSaveCurrent: 'Salvar',
+    saveCurrentTitle: 'Salvar alterações na versão atual',
+    btnSaveAsNew: 'Salvar como Nova',
+    saveAsNewTitle: 'Criar uma nova versão vX+1',
     
     undoTooltip: 'Desfazer (Ctrl+Z)',
     redoTooltip: 'Refazer (Ctrl+Shift+Z)',
@@ -410,5 +544,66 @@ export const translations = {
     
     // Toast
     savedToast: 'Alterações salvas com sucesso',
+
+    // Ficha Técnica Modal (additional)
+    specWarningIncomplete: 'Resposta incompleta do servidor. Mecanismo local usado.',
+    specWarningNoApi: 'API indisponível (GitHub Pages / sem servidor). Ficha gerada localmente.',
+    flowPlanEmptyAlert: 'Canvas vazio. Adicione nós antes de exportar FlowPlan.',
+    copied: 'Copiado!',
+    btnCopyClientSummary: 'Copiar resumo para cliente',
+    btnDownloadJson: 'JSON do fluxo',
+    flowPlanExportTitle: 'Exporta flow_plan.json compatível com FlowBuilder',
+    btnFlowPlanJson: 'FlowPlan JSON',
+    btnRegenerate: 'Regenerar',
+    specGenerating: 'Gerando Ficha Técnica...',
+    specGeneratingDesc: 'Analisando estrutura do fluxo, nós de integração, variáveis e acordos.',
+    
+    // Contexto Drawer
+    ctxEmptyTitle: 'Nenhuma informação de contexto registrada.',
+    ctxEmptyDesc: 'Ao criar projetos com o assistente de 3 passos, você verá aqui os objetivos acordados.',
+    ctxToneLabel: 'Tom:',
+    ctxCompanyInfoLabel: 'Informação Geral:',
+    ctxGoalsLabel: 'O que deve alcançar?',
+    ctxPriorityCasesLabel: 'Casos Prioritários:',
+    ctxWhatNotToDoLabel: 'O que o bot NÃO deve fazer:',
+    ctxHandoffLabel: 'Transferência para Humano:',
+    ctxIntegrationsLabel: 'Integrações Esperadas:',
+    ctxSuccessEndingLabel: 'Encerramento Bem-sucedido:',
+    ctxTypificationsLabel: 'Tipificações Atom:',
+    ctxFunnelLabel: 'Etapas do Funil:',
+    ctxTagsLabel: 'Tags Sugeridas:',
+    
+    // Comments Drawer
+    commentsDrawerTitle: 'Comentários e Acordos do Fluxo',
+    commentsEmpty: 'Nenhum comentário registrado',
+    commentsEmptyDesc: 'Escreva um comentário abaixo ou selecione um nó no canvas.',
+    generalFlow: 'Fluxo Geral',
+    node: 'Nó',
+    by: 'Por:',
+    deleteComment: 'Excluir comentário',
+    addComment: 'Adicionar Comentário',
+    specialist: 'Especialista',
+    client: 'Cliente',
+    developer: 'Desenvolvedor',
+    commentPlaceholder: 'Escreva um comentário ou acordo...',
+    
+    // Custom Node
+    integration: 'INTEGRAÇÃO',
+    step: 'Passo',
+    viewComments: 'Ver / Adicionar comentários',
+    connection: 'Conexão',
+    apiConnector: 'Conector de API Externa',
+    variable: 'Variável',
+    responseBranches: 'Ramos de resposta:',
+    conditionYes: 'Sim (Atende)',
+    conditionNo: 'Não (Padrão)',
+    
+    // Canvas Editor
+    versionSaved: 'Versão salva',
+    versionCreated: 'Versão criada',
+    versionLoaded: 'Versão carregada',
+    steps: 'Passos',
+    integrations: 'Integrações',
+    specTitleAttr: 'Ficha Técnica + Export FlowPlan',
   },
 };

@@ -230,6 +230,7 @@ export default function App() {
   };
 
   return (
+    <ErrorBoundary>
     <div className="min-h-screen bg-slate-50">
       {activeProject ? (
         <CanvasEditor
@@ -255,5 +256,30 @@ export default function App() {
         />
       )}
     </div>
+    </ErrorBoundary>
   );
+}
+
+// ── ERROR BOUNDARY ──
+class ErrorBoundary extends React.Component<{}, { error: Error | null }> {
+  state: { error: Error | null } = { error: null };
+  static getDerivedStateFromError(error: Error) { return { error }; }
+  render() {
+    const self = this as any;
+    if (self.state.error) {
+      return (
+        <div className="flex min-h-screen items-center justify-center bg-slate-900 px-4">
+          <div className="max-w-lg rounded-2xl bg-white p-8 text-center shadow-2xl">
+            <div className="text-5xl mb-4">!</div>
+            <h1 className="text-xl font-extrabold text-red-600 mb-2">Error inesperado</h1>
+            <p className="text-sm text-slate-600 mb-4">{self.state.error.message}</p>
+            <pre className="text-xs text-left bg-slate-100 p-3 rounded-lg overflow-auto max-h-40 mb-4">{self.state.error.stack?.substring(0, 500)}</pre>
+            <button onClick={() => { self.setState({ error: null }); window.location.reload(); }}
+              className="rounded-lg bg-atom-orange px-4 py-2 text-sm font-bold text-white">Reintentar</button>
+          </div>
+        </div>
+      );
+    }
+    return self.props.children;
+  }
 }

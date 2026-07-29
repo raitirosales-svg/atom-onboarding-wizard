@@ -25,6 +25,7 @@ import {
   MessageSquare,
   AlertCircle,
 } from 'lucide-react';
+import { useTranslation } from '../i18n/LanguageContext';
 
 interface CustomNodeProps {
   id: string;
@@ -70,6 +71,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
 };
 
 export const CustomNode: React.FC<CustomNodeProps> = ({ id, data, selected }) => {
+  const { t } = useTranslation();
   const IconComponent = (data.iconName && ICON_MAP[data.iconName]) || MessageSquareText;
   const isIntegration = !!data.isIntegration;
   const commentCount = data.comments?.length || 0;
@@ -111,7 +113,7 @@ export const CustomNode: React.FC<CustomNodeProps> = ({ id, data, selected }) =>
               className="text-[10px] font-bold tracking-wider uppercase px-1.5 py-0.5 rounded-md inline-block max-w-full truncate"
               style={{ backgroundColor: `${mainColor}20`, color: mainColor }}
             >
-              {isIntegration ? '🔌 INTEGRACIÓN' : data.category || 'Paso'}
+              {isIntegration ? t('integration') : data.category || t('step')}
             </span>
           </div>
         </div>
@@ -122,7 +124,7 @@ export const CustomNode: React.FC<CustomNodeProps> = ({ id, data, selected }) =>
             e.stopPropagation();
             if (data.onOpenComments) data.onOpenComments(id);
           }}
-          title="Ver / Añadir comentarios"
+          title={t('viewComments')}
           className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold transition-all ${
             commentCount > 0
               ? 'bg-amber-100 text-amber-800 border border-amber-300 shadow-xs'
@@ -153,7 +155,7 @@ export const CustomNode: React.FC<CustomNodeProps> = ({ id, data, selected }) =>
           <div className="mt-2.5 pt-2 border-t border-purple-100 flex items-center gap-1.5 text-xs font-medium text-purple-700 bg-purple-50/80 px-2.5 py-1.5 rounded-md">
             <Plug className="w-3.5 h-3.5 text-purple-600 shrink-0" />
             <span className="truncate">
-              {data.systemName ? `Conexión: ${data.systemName}` : 'Conector API Externa'}
+              {data.systemName ? `${t('connection')}: ${data.systemName}` : t('apiConnector')}
             </span>
           </div>
         )}
@@ -161,7 +163,7 @@ export const CustomNode: React.FC<CustomNodeProps> = ({ id, data, selected }) =>
         {/* Save field metadata badge */}
         {data.type === 'save_field' && data.fieldName && (
           <div className="mt-2 pt-2 border-t border-slate-100 text-xs text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md font-mono">
-            Variable: <span className="font-bold">{data.fieldName}</span>
+            {t('variable')}: <span className="font-bold">{data.fieldName}</span>
           </div>
         )}
 
@@ -169,7 +171,7 @@ export const CustomNode: React.FC<CustomNodeProps> = ({ id, data, selected }) =>
         {data.type === 'eval_response' && options.length > 0 && (
           <div className="mt-3 space-y-1.5 pt-2 border-t border-slate-100">
             <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block">
-              Ramas de respuesta:
+              {t('responseBranches')}
             </span>
             {options.map((opt, idx) => (
               <div
@@ -193,7 +195,7 @@ export const CustomNode: React.FC<CustomNodeProps> = ({ id, data, selected }) =>
         {data.type === 'condition' && (
           <div className="mt-3 grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
             <div className="relative text-center text-xs bg-emerald-50 text-emerald-800 border border-emerald-200 py-1 rounded-md font-semibold">
-              Sí (Cumple)
+              {t('conditionYes')}
               <Handle
                 type="source"
                 position={Position.Right}
@@ -203,7 +205,7 @@ export const CustomNode: React.FC<CustomNodeProps> = ({ id, data, selected }) =>
               />
             </div>
             <div className="relative text-center text-xs bg-rose-50 text-rose-800 border border-rose-200 py-1 rounded-md font-semibold">
-              No (Default)
+              {t('conditionNo')}
               <Handle
                 type="source"
                 position={Position.Right}

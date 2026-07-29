@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Copy, Check, Download, RefreshCw, FileText, Sparkles, UserCheck } from 'lucide-react';
 import { generateFallbackSpec } from '../lib/generateFallbackSpec';
 import { canvasToFlowPlan, downloadJson } from '../lib/canvasToFlowPlan';
+import { useTranslation } from '../i18n/LanguageContext';
 
 interface FichaTecnicaModalProps {
   project: any;
@@ -20,6 +21,7 @@ export const FichaTecnicaModal: React.FC<FichaTecnicaModalProps> = ({
   liveComments,
   onClose,
 }) => {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [specMarkdown, setSpecMarkdown] = useState('');
   const [warning, setWarning] = useState('');
@@ -61,14 +63,12 @@ export const FichaTecnicaModal: React.FC<FichaTecnicaModalProps> = ({
         setSpecMarkdown(data.specMarkdown);
       } else {
         setSpecMarkdown(generateFallbackSpec(payload));
-        setWarning('Respuesta incompleta del servidor. Se usó motor local.');
+        setWarning(t('specWarningIncomplete'));
       }
       if (data.warning) setWarning(data.warning);
     } catch {
       setSpecMarkdown(generateFallbackSpec(payload));
-      setWarning(
-        'API no disponible (GitHub Pages / sin servidor). Ficha generada localmente con el motor estructurado.'
-      );
+      setWarning(t('specWarningNoApi'));
     } finally {
       setLoading(false);
     }
@@ -127,7 +127,7 @@ export const FichaTecnicaModal: React.FC<FichaTecnicaModalProps> = ({
 
   const handleDownloadFlowPlan = () => {
     if (!nodes.length) {
-      alert('El canvas está vacío. Agrega nodos antes de exportar FlowPlan.');
+      alert(t('flowPlanEmptyAlert'));
       return;
     }
     const plan = canvasToFlowPlan({
@@ -161,14 +161,14 @@ export const FichaTecnicaModal: React.FC<FichaTecnicaModalProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-lg font-extrabold text-slate-900">
-                  Ficha Técnica de Implementación
+                  {t('specModalTitle')}
                 </h2>
                 <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-orange-100 text-orange-800">
                   {ver}
                 </span>
               </div>
               <p className="text-xs text-slate-500">
-                Documento técnico auto-generado para {project.name} ({project.industry})
+                {t('specModalSubtitle')}
               </p>
             </div>
           </div>
@@ -189,7 +189,7 @@ export const FichaTecnicaModal: React.FC<FichaTecnicaModalProps> = ({
               className="px-3.5 py-2 bg-atom-orange hover:bg-atom-orange-hover text-white font-bold rounded-lg flex items-center gap-1.5 transition-colors shadow-xs"
             >
               {copiedFull ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-              {copiedFull ? '¡Copiado!' : 'Copiar ficha técnica (Markdown)'}
+              {copiedFull ? t('copied') : t('btnCopyMarkdown')}
             </button>
 
             <button
@@ -198,7 +198,7 @@ export const FichaTecnicaModal: React.FC<FichaTecnicaModalProps> = ({
               className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg flex items-center gap-1.5 transition-colors shadow-xs"
             >
               {copiedClient ? <Check className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
-              {copiedClient ? '¡Copiado!' : 'Copiar resumen para cliente'}
+              {copiedClient ? t('copied') : t('btnCopyClientSummary')}
             </button>
           </div>
 
@@ -209,24 +209,24 @@ export const FichaTecnicaModal: React.FC<FichaTecnicaModalProps> = ({
               className="px-3 py-2 border border-slate-300 hover:bg-slate-200 text-slate-700 font-bold rounded-lg flex items-center gap-1.5 transition-colors"
             >
               <Download className="w-4 h-4" />
-              JSON del flujo
+              {t('btnDownloadJson')}
             </button>
 
             <button
               onClick={handleDownloadFlowPlan}
               disabled={loading}
               className="px-3 py-2 border border-orange-300 bg-orange-50 hover:bg-orange-100 text-orange-900 font-bold rounded-lg flex items-center gap-1.5 transition-colors"
-              title="Exporta flow_plan.json compatible con FlowBuilder"
+              title={t('flowPlanExportTitle')}
             >
               <Download className="w-4 h-4" />
-              FlowPlan JSON
+              {t('btnFlowPlanJson')}
             </button>
 
             <button
               onClick={fetchSpec}
               disabled={loading}
               className="p-2 border border-slate-300 hover:bg-slate-200 text-slate-700 font-bold rounded-lg flex items-center justify-center transition-colors"
-              title="Regenerar"
+              title={t('btnRegenerate')}
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-orange-600' : ''}`} />
             </button>
@@ -245,9 +245,9 @@ export const FichaTecnicaModal: React.FC<FichaTecnicaModalProps> = ({
             <div className="py-20 text-center space-y-4">
               <div className="w-12 h-12 border-4 border-atom-orange border-t-transparent rounded-full animate-spin mx-auto" />
               <div className="space-y-1">
-                <p className="font-bold text-slate-800 text-base">Generando Ficha Técnica...</p>
+                <p className="font-bold text-slate-800 text-base">{t('specGenerating')}</p>
                 <p className="text-xs text-slate-500">
-                  Analizando estructura del flujo, nodos de integración, variables y acuerdos.
+                  {t('specGeneratingDesc')}
                 </p>
               </div>
             </div>

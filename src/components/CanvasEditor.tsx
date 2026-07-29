@@ -416,12 +416,11 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
     setAllComments((prev) => prev.filter((c) => c.id !== commentId));
   }, []);
 
-  // SAVE VERSION (Creates new version vX+1, never overwrites!)
-  const handleSaveVersion = useCallback(() => {
-    const nextVerNum = (project.versions.length || 0) + 1;
-    const newVersionObj: ProjectVersion = {
-      versionNumber: nextVerNum,
-      versionLabel: `v${nextVerNum}`,
+  // Helper: build version snapshot from current canvas state
+  const buildVersionSnapshot = useCallback(
+    (versionNumber: number, versionLabel: string) => ({
+      versionNumber,
+      versionLabel,
       createdAt: new Date().toISOString(),
       nodes: nodes.map((n) => ({
         id: n.id,
@@ -443,8 +442,32 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
       })),
       edges,
       comments: allComments,
-    };
+    }),
+    [nodes, edges, allComments]
+  );
 
+  // SAVE CURRENT VERSION (overwrites in-place)
+  const handleSaveCurrent = useCallback(() => {
+    const snapshot = buildVersionSnapshot(
+      currentVersionNumber,
+      `v${currentVersionNumber}`
+    );
+    const updatedVersions = project.versions.map((v) =>
+      v.versionNumber === currentVersionNumber ? snapshot : v
+    );
+    const updatedProject: Project = {
+      ...project,
+      versions: updatedVersions,
+      updatedAt: new Date().toISOString(),
+    };
+    onSaveProject(updatedProject);
+    showToast(`${t('versionSaved')} v${currentVersionNumber}`);
+  }, [project, currentVersionNumber, buildVersionSnapshot, onSaveProject]);
+
+  // SAVE AS NEW VERSION (creates vX+1)
+  const handleSaveAsNewVersion = useCallback(() => {
+    const nextVerNum = (project.versions.length || 0) + 1;
+    const newVersionObj = buildVersionSnapshot(nextVerNum, `v${nextVerNum}`);
     const updatedVersions = [...project.versions, newVersionObj];
     const updatedProject: Project = {
       ...project,
@@ -452,11 +475,10 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
       versions: updatedVersions,
       updatedAt: new Date().toISOString(),
     };
-
     setCurrentVersionNumber(nextVerNum);
     onSaveProject(updatedProject);
-    showToast(`¡Versión v${nextVerNum} guardada con éxito!`);
-  }, [project, nodes, edges, allComments, onSaveProject]);
+    showToast(`${t('versionCreated')} v${nextVerNum}`);
+  }, [project, buildVersionSnapshot, onSaveProject]);
 
   // Switch version
   const handleSwitchVersion = (vNum: number) => {
@@ -467,7 +489,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
       setEdges(targetVer.edges || []);
       setAllComments(targetVer.comments || []);
       setSelectedNodeId(null);
-      showToast(`Cargada versión v${vNum}`);
+      showToast(`${t('versionLoaded')} v${vNum}`);
     }
   };
 
@@ -493,7 +515,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
           <button
             onClick={onBackToProjects}
             className="p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors shrink-0"
-            title="Volver a lista de proyectos"
+            title={t('btnBackToProjects')}
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
@@ -530,7 +552,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
 
             {/* Version dropdown */}
             <div className="flex items-center gap-2 text-[11px] text-slate-500">
-              <span className="font-semibold text-slate-700">Versión:</span>
+              <span className="font-semibold text-slate-700">{t('versionLabel')}</span>
               <select
                 value={currentVersionNumber}
                 onChange={(e) => handleSwitchVersion(Number(e.target.value))}
@@ -550,11 +572,11 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
         <div className="hidden md:flex items-center gap-4 text-xs font-semibold text-slate-600 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
           <div className="flex items-center gap-1.5">
             <Layers className="w-3.5 h-3.5 text-blue-600" />
-            <span>{nodes.length} Pasos</span>
+            <span>{nodes.length} {t('steps')}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <Zap className="w-3.5 h-3.5 text-purple-600" />
-            <span>{nodes.filter((n) => n.data?.isIntegration).length} Integraciones</span>
+            <span>{nodes.filter((n) => n.data?.isIntegration).length} {t('integrations')}</span>
           </div>
         </div>
 
@@ -615,7 +637,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                 ? 'bg-blue-100 text-blue-900 border border-blue-300 shadow-2xs'
                 : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
             }`}
-            title="Ver información corporativa y objetivos acordados"
+            title={t('contextDrawerTitle')}
           >
             <FileText className="w-4 h-4 text-blue-600" />
             <span className="hidden sm:inline">{t('btnContextDrawer')}</span>
@@ -643,21 +665,31 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
             )}
           </button>
 
-          {/* Guardar versión */}
+          {/* Guardar versión actual */}
           <button
-            onClick={handleSaveVersion}
-            className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-xs transition-all"
-            title="Guarda como una nueva versión"
+            onClick={handleSaveCurrent}
+            className="px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-xs transition-all"
+            title={t('saveCurrentTitle')}
           >
             <Save className="w-4 h-4 text-emerald-400" />
-            <span className="hidden sm:inline">{t('btnSave')}</span>
+            <span className="hidden sm:inline">{t('btnSaveCurrent')}</span>
+          </button>
+
+          {/* Guardar como nueva versión */}
+          <button
+            onClick={handleSaveAsNewVersion}
+            className="px-3 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-xs transition-all"
+            title={t('saveAsNewTitle')}
+          >
+            <Plus className="w-4 h-4" />
+            <span className="hidden sm:inline">{t('btnSaveAsNew')}</span>
           </button>
 
           {/* Generar Ficha Técnica + FlowPlan Export */}
           <button
             onClick={() => setShowSpecModal(true)}
             className="px-4 py-2 bg-atom-orange hover:bg-atom-orange-hover text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-md hover:shadow-lg transition-all"
-            title="Ficha Técnica + Export FlowPlan"
+            title={t('specTitleAttr')}
           >
             <Sparkles className="w-4 h-4 text-white" />
             <span>{t('btnGenerateSpec')}</span>

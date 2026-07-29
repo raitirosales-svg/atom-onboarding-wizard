@@ -247,3 +247,33 @@ export function downloadJson(filename: string, data: unknown) {
   a.click();
   URL.revokeObjectURL(url);
 }
+
+export function validateFlowPlan(input: {
+  nodes: CanvasNode[];
+  edges: CanvasEdge[];
+}): { valid: boolean; warnings: string[] } {
+  const warnings: string[] = [];
+  const nodeIds = new Set(input.nodes.map((n) => n.id));
+
+  // Orphan nodes (no incoming edge, not first)
+  const targetIds = new Set(input.edges.map((e) => e.target));
+  const orphans = input.nodes.filter((n) => !targetIds.has(n.id) && input.nodes.indexOf(n) > 0);
+  orphans.forEach((n) => warnings.push(`Nodo sin conexión entrante: "${n.data?.label || n.id}"`));
+
+  // Unknown types
+  input.nodes.forEach((n) => {
+    const t = n.data?.type;
+    if (t && !TYPE_MAP[t]) {
+      warnings.push(`Tipo de nodo no mapeado: "${t}" en "${n.data?.label || n.id}"`);
+    }
+  });
+
+  // Edges referencing missing nodes
+  input.edges.forEach((e) => {
+    if (!nodeIds.has(e.source)) warnings.push(`Edge refiere a source inexistente: ${e.source}`);
+    if (!nodeIds.has(e.target)) warnings.push(`Edge refiere a target inexistente: ${e.target}`);
+  });
+
+  if (warnings.length === 0) warnings.push('FlowPlan válido. Sin problemas detectados.');
+  return { valid: warnings.length === 0 || (warnings.length === 1 && warnings[0].includes('Sin problemas')), warnings };
+}

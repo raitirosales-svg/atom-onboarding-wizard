@@ -13,6 +13,7 @@ import {
   Flame,
 } from 'lucide-react';
 import { ProjectContexto } from '../types/canvas';
+import { useTranslation } from '../i18n/LanguageContext';
 
 interface ContextoDrawerProps {
   projectName: string;
@@ -29,13 +30,14 @@ export const ContextoDrawer: React.FC<ContextoDrawerProps> = ({
   contexto,
   onClose,
 }) => {
+  const { t } = useTranslation();
   if (!contexto) {
     return (
       <div className="w-80 sm:w-96 bg-white border-l border-slate-200 h-full flex flex-col shadow-2xl z-30 shrink-0">
         <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
           <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
             <FileText className="w-4 h-4 text-blue-600" />
-            Contexto del Bot
+            {t('contextDrawerTitle')}
           </h3>
           <button
             onClick={onClose}
@@ -45,9 +47,9 @@ export const ContextoDrawer: React.FC<ContextoDrawerProps> = ({
           </button>
         </div>
         <div className="p-6 text-center text-xs text-slate-500 space-y-2">
-          <p className="font-semibold text-slate-700">No hay información de contexto registrada.</p>
+          <p className="font-semibold text-slate-700">{t('ctxEmptyTitle')}</p>
           <p>
-            Al crear proyectos con el asistente de 3 pasos, verás aquí los objetivos acordados con el cliente para referencia continua durante la llamada de onboarding.
+            {t('ctxEmptyDesc')}
           </p>
         </div>
       </div>
@@ -70,7 +72,7 @@ export const ContextoDrawer: React.FC<ContextoDrawerProps> = ({
           </div>
           <div>
             <h3 className="font-extrabold text-slate-900 text-xs uppercase tracking-wider">
-              Contexto & Objetivos del Bot
+              {t('contextDrawerTitle')}
             </h3>
             <p className="text-[11px] text-slate-500 font-medium truncate max-w-[200px]">
               {projectName} • {industry}
@@ -92,13 +94,13 @@ export const ContextoDrawer: React.FC<ContextoDrawerProps> = ({
         <div className="space-y-2 bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80">
           <h4 className="font-bold text-slate-900 flex items-center gap-1.5 text-xs uppercase tracking-wider text-blue-700">
             <Building2 className="w-4 h-4 text-blue-600" />
-            1. Empresa & Tono de Marca
+            1. {t('contextSec1')}
           </h4>
 
           <div className="space-y-1.5 pt-1">
             {contexto.brandTone && (
               <div>
-                <span className="font-semibold text-slate-500">Tono: </span>
+                <span className="font-semibold text-slate-500">{t('ctxToneLabel')} </span>
                 <span className="font-bold text-slate-800 bg-blue-100 text-blue-900 px-2 py-0.5 rounded-md">
                   {contexto.brandTone}
                 </span>
@@ -113,7 +115,7 @@ export const ContextoDrawer: React.FC<ContextoDrawerProps> = ({
 
             {contexto.companyInfo && (
               <div className="pt-1">
-                <span className="font-semibold text-slate-500 block mb-0.5">Información General:</span>
+                <span className="font-semibold text-slate-500 block mb-0.5">{t('ctxCompanyInfoLabel')}</span>
                 <p className="text-slate-700 leading-relaxed bg-white p-2 rounded-lg border border-slate-200">
                   {contexto.companyInfo}
                 </p>
@@ -126,13 +128,13 @@ export const ContextoDrawer: React.FC<ContextoDrawerProps> = ({
         <div className="space-y-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80">
           <h4 className="font-bold text-slate-900 flex items-center gap-1.5 text-xs uppercase tracking-wider text-purple-700">
             <Target className="w-4 h-4 text-purple-600" />
-            2. Objetivos del Bot
+            2. {t('contextSec2')}
           </h4>
 
           {/* Goals chips */}
           {contexto.botGoals && contexto.botGoals.length > 0 && (
             <div>
-              <span className="font-semibold text-slate-500 block mb-1">¿Qué debe lograr?</span>
+              <span className="font-semibold text-slate-500 block mb-1">{t('ctxGoalsLabel')}</span>
               <div className="flex flex-wrap gap-1">
                 {contexto.botGoals.map((g) => (
                   <span
@@ -149,7 +151,7 @@ export const ContextoDrawer: React.FC<ContextoDrawerProps> = ({
           {/* Priority cases */}
           {contexto.priorityUseCases && (
             <div>
-              <span className="font-semibold text-slate-500 block mb-0.5">Casos Prioritarios:</span>
+              <span className="font-semibold text-slate-500 block mb-0.5">{t('ctxPriorityCasesLabel')}</span>
               <p className="bg-white p-2 rounded-lg border border-slate-200 leading-relaxed">
                 {contexto.priorityUseCases}
               </p>
@@ -161,7 +163,7 @@ export const ContextoDrawer: React.FC<ContextoDrawerProps> = ({
             <div className="bg-rose-50/80 p-2.5 rounded-xl border border-rose-200 space-y-1">
               <span className="font-bold text-rose-800 flex items-center gap-1 text-[11px]">
                 <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
-                Lo que NO debe hacer el bot:
+                {t('ctxWhatNotToDoLabel')}
               </span>
               <p className="text-rose-900 text-[11px] leading-relaxed">
                 {contexto.whatNotToDo}
@@ -172,7 +174,7 @@ export const ContextoDrawer: React.FC<ContextoDrawerProps> = ({
           {/* Human handoff trigger */}
           {contexto.humanHandoffTrigger && (
             <div>
-              <span className="font-semibold text-slate-500 block mb-0.5">Derivación a Humano:</span>
+              <span className="font-semibold text-slate-500 block mb-0.5">{t('ctxHandoffLabel')}</span>
               <p className="bg-white p-2 rounded-lg border border-slate-200 leading-relaxed text-[11px]">
                 {contexto.humanHandoffTrigger}
               </p>
@@ -183,7 +185,7 @@ export const ContextoDrawer: React.FC<ContextoDrawerProps> = ({
           {contexto.expectedIntegrations && contexto.expectedIntegrations.length > 0 && (
             <div>
               <span className="font-semibold text-slate-500 block mb-1 flex items-center gap-1">
-                <Plug className="w-3.5 h-3.5 text-purple-600" /> Integraciones Esperadas:
+                <Plug className="w-3.5 h-3.5 text-purple-600" /> {t('ctxIntegrationsLabel')}
               </span>
               <div className="flex flex-wrap gap-1">
                 {contexto.expectedIntegrations.map((i) => (
@@ -203,13 +205,13 @@ export const ContextoDrawer: React.FC<ContextoDrawerProps> = ({
         <div className="space-y-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80">
           <h4 className="font-bold text-slate-900 flex items-center gap-1.5 text-xs uppercase tracking-wider text-emerald-700">
             <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-            3. Cierre & Configuración Atom
+            3. {t('contextSec3')}
           </h4>
 
           {/* Successful ending */}
           {contexto.successfulEnding && (
             <div>
-              <span className="font-semibold text-slate-500 block mb-0.5">Cierre Exitoso:</span>
+              <span className="font-semibold text-slate-500 block mb-0.5">{t('ctxSuccessEndingLabel')}</span>
               <p className="bg-white p-2 rounded-lg border border-slate-200 leading-relaxed text-[11px]">
                 {contexto.successfulEnding}
               </p>
@@ -219,7 +221,7 @@ export const ContextoDrawer: React.FC<ContextoDrawerProps> = ({
           {/* Typifications */}
           {contexto.typifications && contexto.typifications.length > 0 && (
             <div>
-              <span className="font-semibold text-slate-500 block mb-1">Tipificaciones Atom:</span>
+              <span className="font-semibold text-slate-500 block mb-1">{t('ctxTypificationsLabel')}</span>
               <div className="space-y-1">
                 {contexto.typifications.map((t) => (
                   <div
@@ -237,7 +239,7 @@ export const ContextoDrawer: React.FC<ContextoDrawerProps> = ({
           {/* Funnel Stages */}
           {contexto.funnelStages && contexto.funnelStages.length > 0 && (
             <div>
-              <span className="font-semibold text-slate-500 block mb-1">Etapas del Funnel:</span>
+              <span className="font-semibold text-slate-500 block mb-1">{t('ctxFunnelLabel')}</span>
               <div className="flex flex-wrap gap-1">
                 {contexto.funnelStages.map((s) => (
                   <span
@@ -255,7 +257,7 @@ export const ContextoDrawer: React.FC<ContextoDrawerProps> = ({
           {contexto.suggestedTags && contexto.suggestedTags.length > 0 && (
             <div>
               <span className="font-semibold text-slate-500 block mb-1 flex items-center gap-1">
-                <TagIcon className="w-3.5 h-3.5 text-blue-600" /> Etiquetas Sugeridas:
+                <TagIcon className="w-3.5 h-3.5 text-blue-600" /> {t('ctxTagsLabel')}
               </span>
               <div className="flex flex-wrap gap-1">
                 {contexto.suggestedTags.map((t) => (

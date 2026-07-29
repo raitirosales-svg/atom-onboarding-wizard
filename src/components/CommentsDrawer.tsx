@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, MessageSquare, CornerDownRight, Trash2, Send, Plus } from 'lucide-react';
 import { NodeComment } from '../types/canvas';
+import { useTranslation } from '../i18n/LanguageContext';
 
 interface CommentsDrawerProps {
   comments: NodeComment[];
@@ -24,6 +25,7 @@ export const CommentsDrawer: React.FC<CommentsDrawerProps> = ({
   const [targetNodeId, setTargetNodeId] = useState<string>('general');
   const [commentAuthor, setCommentAuthor] = useState<string>('Especialista Onboarding');
   const [commentText, setCommentText] = useState<string>('');
+  const { t } = useTranslation();
 
   useEffect(() => {
     if (selectedNodeId && nodes.some((n) => n.id === selectedNodeId)) {
@@ -53,7 +55,7 @@ export const CommentsDrawer: React.FC<CommentsDrawerProps> = ({
         <div className="flex items-center gap-2">
           <MessageSquare className="w-5 h-5 text-blue-600" />
           <h3 className="font-bold text-slate-900 text-sm">
-            Comentarios y Acuerdos del Flujo ({comments.length})
+            {t('commentsDrawerTitle')} ({comments.length})
           </h3>
         </div>
         <button
@@ -70,10 +72,10 @@ export const CommentsDrawer: React.FC<CommentsDrawerProps> = ({
           <div className="text-center py-10 px-4 space-y-2">
             <MessageSquare className="w-10 h-10 text-slate-300 mx-auto" />
             <p className="text-sm font-semibold text-slate-600">
-              No hay comentarios registrados
+              {t('commentsEmpty')}
             </p>
             <p className="text-xs text-slate-400">
-              Escribe un nuevo comentario abajo o selecciona un nodo en el canvas para añadir notas técnicas y acuerdos.
+              {t('commentsEmptyDesc')}
             </p>
           </div>
         ) : (
@@ -89,7 +91,7 @@ export const CommentsDrawer: React.FC<CommentsDrawerProps> = ({
                 >
                   <CornerDownRight className="w-3.5 h-3.5 text-blue-500 shrink-0" />
                   <span className="truncate">
-                    {comm.nodeTitle || (comm.nodeId === 'general' ? 'Flujo General' : `Nodo ${comm.nodeId}`)}
+                    {comm.nodeTitle || (comm.nodeId === 'general' ? t('generalFlow') : `${t('node')} ${comm.nodeId}`)}
                   </span>
                 </button>
                 <span className="text-[10px] text-slate-400">{comm.timestamp}</span>
@@ -100,11 +102,11 @@ export const CommentsDrawer: React.FC<CommentsDrawerProps> = ({
               </p>
 
               <div className="flex items-center justify-between pt-1 text-[11px] text-slate-500 border-t border-slate-200/60">
-                <span className="font-medium text-slate-600">Por: {comm.author}</span>
+                <span className="font-medium text-slate-600">{t('by')} {comm.author}</span>
                 <button
                   onClick={() => onDeleteComment(comm.id)}
                   className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-600 transition-opacity p-1"
-                  title="Eliminar comentario"
+                  title={t('deleteComment')}
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
@@ -119,7 +121,7 @@ export const CommentsDrawer: React.FC<CommentsDrawerProps> = ({
         <div className="flex items-center justify-between text-xs font-bold text-slate-800">
           <span className="flex items-center gap-1.5">
             <Plus className="w-3.5 h-3.5 text-blue-600" />
-            Añadir Comentario
+            {t('addComment')}
           </span>
         </div>
 
@@ -132,10 +134,10 @@ export const CommentsDrawer: React.FC<CommentsDrawerProps> = ({
               onKeyDown={(e) => e.stopPropagation()}
               className="text-[11px] border border-slate-300 rounded-md px-2 py-1 bg-white font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 truncate"
             >
-              <option value="general">Flujo General</option>
+              <option value="general">{t('generalFlow')}</option>
               {nodes.map((n) => (
                 <option key={n.id} value={n.id}>
-                  {n.data?.label || `Nodo ${n.id}`}
+                  {n.data?.label || `${t('node')} ${n.id}`}
                 </option>
               ))}
             </select>
@@ -147,9 +149,9 @@ export const CommentsDrawer: React.FC<CommentsDrawerProps> = ({
               onKeyDown={(e) => e.stopPropagation()}
               className="text-[11px] border border-slate-300 rounded-md px-2 py-1 bg-white font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 truncate"
             >
-              <option value="Especialista Onboarding">Especialista</option>
-              <option value="Cliente">Cliente</option>
-              <option value="Desarrollador / Lider Técnico">Desarrollador</option>
+              <option value="Especialista Onboarding">{t('specialist')}</option>
+              <option value="Cliente">{t('client')}</option>
+              <option value="Desarrollador / Lider Técnico">{t('developer')}</option>
             </select>
           </div>
 
@@ -165,7 +167,7 @@ export const CommentsDrawer: React.FC<CommentsDrawerProps> = ({
                   if (commentText.trim()) handleSubmit(e);
                 }
               }}
-              placeholder="Escribe un comentario o acuerdo..."
+              placeholder={t('commentPlaceholder')}
               className="flex-1 p-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 bg-white"
             />
             <button

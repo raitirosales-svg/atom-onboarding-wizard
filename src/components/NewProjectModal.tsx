@@ -111,9 +111,18 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
   }, [step]);
 
   // Handlers for step 1
+  const [logoError, setLogoError] = useState('');
+
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      const maxSize = 500 * 1024; // 500KB
+      if (file.size > maxSize) {
+        setLogoError('El archivo excede 500KB. Elige una imagen más pequeña.');
+        e.target.value = '';
+        return;
+      }
+      setLogoError('');
       const reader = new FileReader();
       reader.onloadend = () => {
         setLogo(reader.result as string);
@@ -497,6 +506,9 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
                       <span className="text-xs font-semibold text-slate-600">Cargar logotipo en PNG/JPG</span>
                       <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
                     </label>
+                  )}
+                  {logoError && (
+                    <p className="text-xs text-red-600 font-semibold mt-1">{logoError}</p>
                   )}
                 </div>
               </div>
