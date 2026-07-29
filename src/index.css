@@ -17,7 +17,6 @@
   --atom-border: #BDD7E9;
 }
 
-/* Custom canvas grid styles */
 .react-flow__node {
   border-radius: 0.75rem;
 }
@@ -29,4 +28,3 @@
 .react-flow__handle:hover {
   transform: scale(1.25);
 }
-

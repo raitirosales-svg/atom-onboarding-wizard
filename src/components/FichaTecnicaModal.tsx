@@ -1,201 +1,213 @@
-import React, { useState } from 'react';
-import { X, FileText, Sparkles, Copy, Check, Download, RefreshCw } from 'lucide-react';
-import { ProjectMetadata, WhatsAppNodeData } from '../types';
-import { Node, Edge } from '@xyflow/react';
-import { useLanguage } from '../i18n';
-import { generateWithGemini } from '../utils/geminiClient';
+import React, { useState, useEffect } from 'react';
+import { X, Copy, Check, Download, RefreshCw, FileText, Sparkles, UserCheck } from 'lucide-react';
 
 interface FichaTecnicaModalProps {
-  isOpen: boolean;
+  project: any;
+  currentVersion: any;
   onClose: () => void;
-  projectMeta: ProjectMetadata;
-  nodes: Node<WhatsAppNodeData>[];
-  edges: Edge[];
 }
 
 export const FichaTecnicaModal: React.FC<FichaTecnicaModalProps> = ({
-  isOpen,
+  project,
+  currentVersion,
   onClose,
-  projectMeta,
-  nodes,
-  edges,
 }) => {
-  const { t } = useLanguage();
-  const [loading, setLoading] = useState(false);
-  const [specMarkdown, setSpecMarkdown] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [specMarkdown, setSpecMarkdown] = useState('');
+  const [warning, setWarning] = useState('');
+  const [copiedFull, setCopiedFull] = useState(false);
+  const [copiedClient, setCopiedClient] = useState(false);
 
-  if (!isOpen) return null;
-
-  const handleGenerateSpec = async () => {
+  const fetchSpec = async () => {
     setLoading(true);
-    setError(null);
-
-    // Build prompt for Gemini
-    const nodeDescs = nodes.map((n) =>
-      `- [${n.data.nodeType}] ${n.data.label}${n.data.description ? ': ' + n.data.description : ''}${n.data.options?.length ? ' (Options: ' + n.data.options.join(', ') + ')' : ''}${n.data.systemName ? ' [System: ' + n.data.systemName + ']' : ''}`
-    ).join('\n');
-
-    const prompt = `Generate a professional technical implementation spec in Spanish for a WhatsApp chatbot.
-
-Client: ${projectMeta.name || 'Cliente'}
-Industry: ${projectMeta.industry || 'No especificada'}
-
-Flow structure (${nodes.length} nodes, ${edges.length} connections):
-${nodeDescs}
-
-Generate a markdown document with these sections:
-## 1. Resumen Ejecutivo
-## 2. Objetivos del Bot
-## 3. Flujo Paso a Paso
-## 4. Integraciones Requeridas
-## 5. Datos a Capturar
-## 6. Preguntas Abiertas
-## 7. Resumen para el Cliente (lenguaje no técnico)`;
-
     try {
-      // Try Express server first (AI Studio / local dev)
-      let specText = '';
-      try {
-        const response = await fetch('/api/generate-spec', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ projectMeta, nodes, edgesCount: edges.length }),
-        });
-        if (response.ok) {
-          const data = await response.json();
-          specText = data.specMarkdown || '';
-        }
-      } catch {
-        // Server not available, try client-side Gemini
-      }
+      const payload = {
+        clientName: project.name,
+        industry: project.industry,
+        version: currentVersion.versionLabel || `v${project.currentVersionNumber}`,
+        contexto: project.contexto,
+        flow: {
+          nodes: currentVersion.nodes || [],
+          edges: currentVersion.edges || [],
+          comments: currentVersion.comments || [],
+        },
+      };
 
-      // Fallback to client-side Gemini
-      if (!specText) {
-        specText = await generateWithGemini(prompt);
-      }
+      const res = await fetch('/api/generate-spec', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
 
-      setSpecMarkdown(specText);
+      const data = await res.json();
+      if (data.specMarkdown) {
+        setSpecMarkdown(data.specMarkdown);
+      } else {
+        setSpecMarkdown('# Error al generar la Ficha Técnica');
+      }
+      if (data.warning) setWarning(data.warning);
     } catch (err: any) {
-      setError(err.message || 'Hubo un inconveniente al contactar el servicio de IA.');
+      console.error(err);
+      setSpecMarkdown('# Error en la comunicación con el servidor');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCopy = () => {
-    if (!specMarkdown) return;
+  useEffect(() => {
+    fetchSpec();
+  }, []);
+
+  const handleCopyFull = () => {
     navigator.clipboard.writeText(specMarkdown);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setCopiedFull(true);
+    setTimeout(() => setCopiedFull(false), 2500);
   };
 
-  const handleDownload = () => {
-    if (!specMarkdown) return;
-    const blob = new Blob([specMarkdown], { type: 'text/markdown' });
+  const handleCopyClientSummary = () => {
+    // Extract section 7: "Resumen de acuerdos para el cliente"
+    const sectionMarker = '## 7. Resumen de acuerdos para el cliente';
+    let clientText = specMarkdown;
+    if (specMarkdown.includes(sectionMarker)) {
+      clientText = specMarkdown.split(sectionMarker)[1]?.trim() || specMarkdown;
+    }
+    navigator.clipboard.writeText(clientText);
+    setCopiedClient(true);
+    setTimeout(() => setCopiedClient(false), 2500);
+  };
+
+  const handleDownloadJSON = () => {
+    const rawData = {
+      project: {
+        id: project.id,
+        name: project.name,
+        industry: project.industry,
+        brandColor: project.brandColor,
+        version: currentVersion.versionLabel,
+      },
+      flow: {
+        nodes: currentVersion.nodes,
+        edges: currentVersion.edges,
+        comments: currentVersion.comments,
+      },
+      exportedAt: new Date().toISOString(),
+    };
+
+    const blob = new Blob([JSON.stringify(rawData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `Ficha_Tecnica_${(projectMeta.name || 'Bot').replace(/\s+/g, '_')}.md`;
+    a.download = `ficha-tecnica-${project.name.toLowerCase().replace(/\s+/g, '-')}-${currentVersion.versionLabel || 'v1'}.json`;
     a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
-      <div className="flex max-h-[90vh] w-full max-w-4xl flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden border border-slate-200">
         {/* Modal Header */}
-        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-slate-800">
+        <div
+          className="p-5 border-b border-slate-200 flex items-center justify-between"
+          style={{ backgroundColor: `${project.brandColor}10` }}
+        >
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-100 text-[var(--atom-orange)] dark:bg-orange-950/80 dark:text-orange-300">
-              <FileText className="h-5 w-5" />
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-md font-bold text-lg"
+              style={{ backgroundColor: project.brandColor || '#2563EB' }}
+            >
+              <FileText className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-900 dark:text-white">
-                {t('specModalTitle')}
-              </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                {t('specModalSubtitle')}
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-extrabold text-slate-900">
+                  Ficha Técnica de Implementación
+                </h2>
+                <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-blue-100 text-blue-800">
+                  {currentVersion.versionLabel || 'v1'}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500">
+                Documento técnico auto-generado para {project.name} ({project.industry})
               </p>
             </div>
           </div>
+
           <button
             onClick={onClose}
-            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition-colors"
           >
-            <X className="h-5 w-5" />
+            <X className="w-6 h-6" />
           </button>
         </div>
 
-        {/* Body Content */}
-        <div className="flex-1 overflow-y-auto p-6">
-          {!specMarkdown && !loading && (
-            <div className="flex flex-col items-center justify-center py-12 text-center space-y-4">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-orange-50 text-[var(--atom-orange)] dark:bg-orange-950/60 dark:text-orange-400">
-                <Sparkles className="h-8 w-8 animate-pulse" />
-              </div>
-              <div className="max-w-md space-y-1">
-                <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">
-                  {projectMeta.name || 'Bot'}
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  {nodes.length} Nodos & {edges.length} Conexiones
+        {/* Action Toolbar */}
+        <div className="bg-slate-50 px-5 py-3 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleCopyFull}
+              disabled={loading}
+              className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg flex items-center gap-1.5 transition-colors shadow-xs"
+            >
+              {copiedFull ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              {copiedFull ? '¡Copiado!' : 'Copiar ficha técnica (Markdown)'}
+            </button>
+
+            <button
+              onClick={handleCopyClientSummary}
+              disabled={loading}
+              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg flex items-center gap-1.5 transition-colors shadow-xs"
+            >
+              {copiedClient ? <Check className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
+              {copiedClient ? '¡Copiado!' : 'Copiar resumen para cliente'}
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleDownloadJSON}
+              disabled={loading}
+              className="px-3 py-2 border border-slate-300 hover:bg-slate-200 text-slate-700 font-bold rounded-lg flex items-center gap-1.5 transition-colors"
+            >
+              <Download className="w-4 h-4" />
+              Descargar JSON del flujo
+            </button>
+
+            <button
+              onClick={fetchSpec}
+              disabled={loading}
+              className="p-2 border border-slate-300 hover:bg-slate-200 text-slate-700 font-bold rounded-lg flex items-center justify-center transition-colors"
+              title="Regenerar con IA"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-blue-600' : ''}`} />
+            </button>
+          </div>
+        </div>
+
+        {/* Warning banner if any */}
+        {warning && (
+          <div className="bg-amber-50 text-amber-800 text-xs px-5 py-2 border-b border-amber-200 flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
+            <span>{warning}</span>
+          </div>
+        )}
+
+        {/* Document content */}
+        <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50">
+          {loading ? (
+            <div className="py-20 text-center space-y-4">
+              <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
+              <div className="space-y-1">
+                <p className="font-bold text-slate-800 text-base">
+                  Generando Ficha Técnica con Inteligencia Artificial...
+                </p>
+                <p className="text-xs text-slate-500">
+                  Analizando estructura del flujo, nodos de integración, variables y acuerdos.
                 </p>
               </div>
-              <button
-                onClick={handleGenerateSpec}
-                className="flex items-center gap-2 rounded-xl bg-[var(--atom-orange)] px-5 py-2.5 text-xs font-bold text-white shadow-md hover:bg-[var(--atom-orange-hover)] transition-colors"
-              >
-                <Sparkles className="h-4 w-4" /> {t('specGenerateBtn')}
-              </button>
             </div>
-          )}
-
-          {loading && (
-            <div className="flex flex-col items-center justify-center py-16 text-center space-y-3">
-              <RefreshCw className="h-8 w-8 animate-spin text-[var(--atom-orange)]" />
-              <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                {t('generatingSpecMsg')}
-              </p>
-            </div>
-          )}
-
-          {error && (
-            <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300">
-              {error}
-            </div>
-          )}
-
-          {specMarkdown && !loading && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between rounded-xl bg-slate-50 p-3 dark:bg-slate-950">
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={handleCopy}
-                    className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
-                  >
-                    {copied ? <Check className="h-3.5 w-3.5 text-[var(--atom-orange)]" /> : <Copy className="h-3.5 w-3.5" />}
-                    {copied ? t('specCopied') : t('specCopyBtn')}
-                  </button>
-                  <button
-                    onClick={handleDownload}
-                    className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
-                  >
-                    <Download className="h-3.5 w-3.5" /> Descargar .md
-                  </button>
-                  <button
-                    onClick={handleGenerateSpec}
-                    className="flex items-center gap-1 rounded-lg bg-[var(--atom-orange)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--atom-orange-hover)]"
-                  >
-                    <RefreshCw className="h-3.5 w-3.5" /> {t('specRegenerateBtn')}
-                  </button>
-                </div>
-              </div>
-
-              {/* Formatted Markdown Box */}
-              <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-5 font-mono text-xs text-slate-800 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200 whitespace-pre-wrap leading-relaxed select-text">
-                {specMarkdown}
-              </div>
+          ) : (
+            <div className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm max-w-3xl mx-auto space-y-6 text-slate-800 text-sm leading-relaxed whitespace-pre-wrap font-sans">
+              {specMarkdown}
             </div>
           )}
         </div>
@@ -203,4 +215,3 @@ Generate a markdown document with these sections:
     </div>
   );
 };
-

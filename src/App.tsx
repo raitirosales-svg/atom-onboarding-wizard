@@ -1,163 +1,259 @@
-import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { ReactFlow, MiniMap, Controls, Background, useNodesState, useEdgesState, addEdge, Connection, Edge, Node, BackgroundVariant } from '@xyflow/react';
-import { CustomWhatsAppNode } from './components/CustomWhatsAppNode';
-import { SidebarNodePalette } from './components/SidebarNodePalette';
-import { NodeInspector } from './components/NodeInspector';
-import { Header } from './components/Header';
-import { FlowPlanExportModal } from './components/FlowPlanExportModal';
-import { NodeType, WhatsAppNodeData, ProjectMetadata } from './types';
-import { useLanguage } from './i18n';
+import React, { useState, useEffect } from 'react';
+import { Project, ProjectVersion } from './types/canvas';
+import { TEMPLATES } from './data/templates';
+import { ProjectList } from './components/ProjectList';
+import { CanvasEditor } from './components/CanvasEditor';
+import { NewProjectModal } from './components/NewProjectModal';
 
-const STORAGE_KEY = 'atom_onboarding_state';
-const ACCESS_CODE = 'atom2024';
+const LOCAL_STORAGE_KEY = 'atom_scope_builder_projects_v2';
 
-function loadState() { try { const r = localStorage.getItem(STORAGE_KEY); return r ? JSON.parse(r) : null; } catch { return null; } }
-function saveState(nodes: any[], edges: any[], meta: ProjectMetadata) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ nodes, edges, meta })); } catch {}
-}
-
-function getLabel(type: NodeType, t: (k: string) => string): string {
-  const m: Record<string, string> = {
-    message: 'nodeMessageLabel', template: 'nodeTemplateLabel', eval_response: 'nodeEvalResponseLabel',
-    condition: 'nodeConditionLabel', jump: 'nodeJumpLabel', typification: 'nodeTypificationLabel',
-    delay: 'nodeDelayLabel', save_field: 'nodeSaveFieldLabel', smarton: 'nodeSmartonLabel',
-    format: 'nodeFormatLabel', tag: 'nodeTagLabel', customer_stage: 'nodeCustomerStageLabel',
-    assign_group: 'nodeAssignGroupLabel', crm: 'nodeCrmLabel',
-  };
-  return t(m[type] || 'nodeMessageLabel');
-}
+// Default starter projects if localStorage is empty
+const INITIAL_DEMO_PROJECTS: Project[] = [
+  {
+    id: 'proj-demo-1',
+    name: 'Cliente E-commerce XYZ',
+    industry: 'E-commerce',
+    brandColor: '#2563EB',
+    language: 'SP',
+    updatedAt: new Date().toISOString(),
+    currentVersionNumber: 1,
+    contexto: {
+      brandTone: 'Cercano y amigable',
+      toneDetails: 'Usar emojis, tutear al usuario, evitar tecnicismos.',
+      companyInfo: 'Tienda de moda en línea con envíos a todo el país.',
+      language: 'SP',
+      botGoals: ['Generar leads', 'Responder preguntas frecuentes', 'Vender productos'],
+      priorityUseCases: 'Consultas de catálogo, estado de envío de pedidos y soporte de cambios.',
+      whatNotToDo: 'No ofrecer descuentos adicionales sin cupón válido.',
+      humanHandoffTrigger: 'Cuando soliciten hablar con un asesor o reclamo de garantía.',
+      expectedIntegrations: ['CRM', 'Pasarela de pago'],
+      successfulEnding: 'Pedido realizado o derivación confirmada a agente de soporte.',
+      typifications: [
+        'Fin Autogestión (resuelto por el bot)',
+        'Seguimiento Autogestión (requiere reactivación o intervención humana)',
+        'Venta Exitosa',
+      ],
+      funnelStages: ['Awareness', 'Interest', 'Opportunity'],
+      suggestedTags: ['cliente_vip', 'ecommerce_lead', 'soporte_envios'],
+    },
+    versions: [
+      {
+        versionNumber: 1,
+        versionLabel: 'v1',
+        createdAt: new Date().toISOString(),
+        nodes: TEMPLATES['E-commerce'].nodes,
+        edges: TEMPLATES['E-commerce'].edges,
+        comments: TEMPLATES['E-commerce'].comments || [],
+      },
+    ],
+  },
+  {
+    id: 'proj-demo-2',
+    name: 'Clínica Salud Integral',
+    industry: 'Salud',
+    brandColor: '#059669',
+    language: 'EN',
+    updatedAt: new Date().toISOString(),
+    currentVersionNumber: 1,
+    contexto: {
+      brandTone: 'Formal y profesional',
+      toneDetails: 'Tratar de usted, lenguaje claro, alto nivel de empatía.',
+      companyInfo: 'Red de centros médicos especializados en consultas generales y laboratorio.',
+      language: 'EN',
+      botGoals: ['Agendar citas', 'Responder preguntas frecuentes', 'Calificar prospectos'],
+      priorityUseCases: 'Agendamiento de citas médicas por especialidad y consulta de horarios.',
+      whatNotToDo: 'Nunca emitir diagnósticos médicos ni recomendar medicamentos.',
+      humanHandoffTrigger: 'Casos de urgencia médica o insatisfacción.',
+      expectedIntegrations: ['Agenda-calendario', 'Base de datos propia'],
+      successfulEnding: 'Cita reservada en sistema con correo de confirmación enviado.',
+      typifications: [
+        'Fin Autogestión (resuelto por el bot)',
+        'Seguimiento Autogestión (requiere reactivación o intervención humana)',
+        'Cita Agendada',
+      ],
+      funnelStages: ['Awareness', 'Consideration', 'Opportunity'],
+      suggestedTags: ['paciente_nuevo', 'cita_medica', 'urgencia'],
+    },
+    versions: [
+      {
+        versionNumber: 1,
+        versionLabel: 'v1',
+        createdAt: new Date().toISOString(),
+        nodes: TEMPLATES['Salud'].nodes,
+        edges: TEMPLATES['Salud'].edges,
+        comments: TEMPLATES['Salud'].comments || [],
+      },
+    ],
+  },
+  {
+    id: 'proj-demo-3',
+    name: 'Grupo Inmobiliario Premier',
+    industry: 'Inmobiliario',
+    brandColor: '#7C3AED',
+    language: 'PT',
+    updatedAt: new Date().toISOString(),
+    currentVersionNumber: 1,
+    contexto: {
+      brandTone: 'Formal y profesional',
+      toneDetails: 'Énfasis en exclusividad y atención personalizada.',
+      companyInfo: 'Desarrollador de proyectos residenciales de alto valor.',
+      language: 'PT',
+      botGoals: ['Generar leads', 'Calificar prospectos', 'Agendar citas'],
+      priorityUseCases: 'Captura de presupuesto e interés de compra para enviar brochure en PDF.',
+      whatNotToDo: 'No prometer precios fijos sin previa evaluación financiera.',
+      humanHandoffTrigger: 'Lead con presupuesto calificado listo para visita presencial.',
+      expectedIntegrations: ['CRM', 'Agenda-calendario'],
+      successfulEnding: 'Lead calificado y registrado en CRM con ejecutivo asignado.',
+      typifications: [
+        'Fin Autogestión (resuelto por el bot)',
+        'Seguimiento Autogestión (requiere reactivación o intervención humana)',
+        'Lead Calificado High-Ticket',
+      ],
+      funnelStages: ['Interest', 'Consideration', 'Opportunity'],
+      suggestedTags: ['inversor', 'brochure_enviado', 'visita_agendada'],
+    },
+    versions: [
+      {
+        versionNumber: 1,
+        versionLabel: 'v1',
+        createdAt: new Date().toISOString(),
+        nodes: TEMPLATES['Inmobiliario'].nodes,
+        edges: TEMPLATES['Inmobiliario'].edges,
+        comments: [],
+      },
+    ],
+  },
+];
 
 export default function App() {
-  const { t } = useLanguage();
-  const state = useMemo(() => loadState(), []);
+  const [projects, setProjects] = useState<Project[]>(() => {
+    try {
+      const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (err) {
+      console.error('Error loading projects from localStorage:', err);
+    }
+    return INITIAL_DEMO_PROJECTS;
+  });
 
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userEmail, setUserEmail] = useState('');
-  const [showSetup, setShowSetup] = useState(!state?.meta?.clientName);
-  const [showExport, setShowExport] = useState(false);
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
+  const [activeVersionNumber, setActiveVersionNumber] = useState<number>(1);
+  const [showNewModal, setShowNewModal] = useState<boolean>(false);
 
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node<WhatsAppNodeData>>(state?.nodes || []);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(state?.edges || []);
-  const [projectMeta, setProjectMeta] = useState<ProjectMetadata>(state?.meta || { name: '', clientName: '', description: '', industry: '', objective: '', author: '' });
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-
-  const nodeTypes = useMemo(() => ({ customWhatsAppNode: CustomWhatsAppNode }), []);
-  const onConnect = useCallback((p: Connection) => setEdges(eds => addEdge(p, eds)), [setEdges]);
-  const selectedNode = useMemo(() => nodes.find(n => n.id === selectedNodeId) || null, [nodes, selectedNodeId]);
-
-  // Persist
-  const saveTimer = useRef<ReturnType<typeof setTimeout>>();
-  useEffect(() => { if (!isLoggedIn) return; clearTimeout(saveTimer.current); saveTimer.current = setTimeout(() => saveState(nodes, edges, projectMeta), 1000); }, [nodes, edges, projectMeta, isLoggedIn]);
-
-  // Undo
-  const undoStack = useRef<Array<{ nodes: Node<WhatsAppNodeData>[]; edges: Edge[] }>>([]);
-  const pushUndo = useCallback(() => {
-    undoStack.current.push({ nodes: JSON.parse(JSON.stringify(nodes)), edges: JSON.parse(JSON.stringify(edges)) });
-    if (undoStack.current.length > 50) undoStack.current.shift();
-  }, [nodes, edges]);
-  const handleUndo = useCallback(() => { const p = undoStack.current.pop(); if (p) { setNodes(p.nodes); setEdges(p.edges); } }, [setNodes, setEdges]);
+  // Sync projects to localStorage
   useEffect(() => {
-    const k = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); handleUndo(); } };
-    window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k);
-  }, [handleUndo]);
+    try {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(projects));
+    } catch (err) {
+      console.error('Error saving projects to localStorage:', err);
+    }
+  }, [projects]);
 
-  const handleAddNode = useCallback((type: NodeType) => {
-    pushUndo();
-    const id = `n_${Date.now()}`;
-    setNodes(nds => [...nds, {
-      id, type: 'customWhatsAppNode',
-      position: { x: 300 + (nds.length % 4) * 320, y: 150 + Math.floor(nds.length / 4) * 220 },
-      data: { nodeType: type, label: getLabel(type, t), description: '', options: (type === 'eval_response' || type === 'smarton') ? ['Opción 1', 'Opción 2'] : undefined, fieldName: (type === 'save_field' || type === 'customer_stage') ? 'var_campo' : undefined },
-    }]);
-  }, [setNodes, pushUndo, t]);
+  const activeProject = projects.find((p) => p.id === activeProjectId) || null;
 
-  const handleUpdateNode = useCallback((id: string, d: Partial<WhatsAppNodeData>) => {
-    setNodes(nds => nds.map(n => n.id === id ? { ...n, data: { ...n.data, ...d } } : n));
-  }, [setNodes]);
+  // Open Canvas for project
+  const handleOpenProject = (project: Project, versionNumber?: number) => {
+    setActiveProjectId(project.id);
+    setActiveVersionNumber(versionNumber || project.currentVersionNumber || 1);
+  };
 
-  const handleDeleteNode = useCallback((id: string) => {
-    pushUndo(); setNodes(nds => nds.filter(n => n.id !== id)); setEdges(eds => eds.filter(e => e.source !== id && e.target !== id));
-    if (selectedNodeId === id) setSelectedNodeId(null);
-  }, [selectedNodeId, setNodes, setEdges, pushUndo]);
+  // Back to Project List
+  const handleBackToProjects = () => {
+    setActiveProjectId(null);
+  };
 
-  const handleNewProject = useCallback(() => { pushUndo(); setNodes([]); setEdges([]); setProjectMeta({ name: '', clientName: '', description: '', industry: '', objective: '', author: '' }); setShowSetup(true); }, [setNodes, setEdges, pushUndo]);
-  const handleSetupDone = useCallback((meta: ProjectMetadata) => { setProjectMeta(meta); setShowSetup(false); }, []);
+  // Create new project with template and wizard contexto
+  const handleCreateProject = (projectData: {
+    name: string;
+    industry: Project['industry'];
+    brandColor: string;
+    logo?: string;
+    contexto: Project['contexto'];
+  }) => {
+    const templateData = TEMPLATES[projectData.industry] || TEMPLATES['Otro'];
 
-  if (!isLoggedIn) return <LoginPage onLogin={(e) => { setUserEmail(e); setIsLoggedIn(true); }} />;
-  if (showSetup) return <SetupPage meta={projectMeta} onSave={handleSetupDone} onLogout={() => setIsLoggedIn(false)} userEmail={userEmail} />;
+    const newVersion: ProjectVersion = {
+      versionNumber: 1,
+      versionLabel: 'v1',
+      createdAt: new Date().toISOString(),
+      nodes: JSON.parse(JSON.stringify(templateData.nodes || [])),
+      edges: JSON.parse(JSON.stringify(templateData.edges || [])),
+      comments: JSON.parse(JSON.stringify(templateData.comments || [])),
+    };
+
+    const newProject: Project = {
+      id: `proj-${Date.now()}`,
+      name: projectData.name,
+      industry: projectData.industry,
+      brandColor: projectData.brandColor,
+      logo: projectData.logo,
+      language: projectData.contexto?.language || 'SP',
+      updatedAt: new Date().toISOString(),
+      currentVersionNumber: 1,
+      contexto: projectData.contexto,
+      versions: [newVersion],
+    };
+
+    setProjects((prev) => [newProject, ...prev]);
+    setShowNewModal(false);
+    setActiveProjectId(newProject.id);
+    setActiveVersionNumber(1);
+  };
+
+  // Save updated project (versioning)
+  const handleSaveProject = (updatedProject: Project) => {
+    setProjects((prev) =>
+      prev.map((p) => (p.id === updatedProject.id ? updatedProject : p))
+    );
+  };
+
+  // Delete project
+  const handleDeleteProject = (projectId: string) => {
+    setProjects((prev) => prev.filter((p) => p.id !== projectId));
+    if (activeProjectId === projectId) {
+      setActiveProjectId(null);
+    }
+  };
+
+  // Duplicate project
+  const handleDuplicateProject = (project: Project) => {
+    const duplicated: Project = {
+      ...project,
+      id: `proj-${Date.now()}`,
+      name: `${project.name} (Copia)`,
+      updatedAt: new Date().toISOString(),
+    };
+    setProjects((prev) => [duplicated, ...prev]);
+  };
 
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden bg-[var(--atom-light)] font-sans text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100">
-      <Header projectMeta={projectMeta} onUpdateProjectMeta={setProjectMeta} nodeCount={nodes.length} edgeCount={edges.length}
-        onOpenExportModal={() => setShowExport(true)} onNewProject={handleNewProject} onUndo={handleUndo}
-        canUndo={undoStack.current.length > 0} onSetup={() => setShowSetup(true)} onLogout={() => setIsLoggedIn(false)} userEmail={userEmail} />
-      <div className="flex flex-1 overflow-hidden">
-        <SidebarNodePalette onAddNode={handleAddNode} />
-        <main className="relative flex-1 bg-[var(--atom-light)] dark:bg-slate-900">
-          {nodes.length === 0 && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-              <div className="text-center text-slate-400"><div className="text-5xl mb-4">🖱️</div><p className="text-lg font-semibold">Haz clic en los componentes de la izquierda para empezar</p></div>
-            </div>
-          )}
-          <ReactFlow nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
-            onConnect={onConnect} onNodeClick={(_, n) => setSelectedNodeId(n.id)} onPaneClick={() => setSelectedNodeId(null)}
-            nodeTypes={nodeTypes} fitView deleteKeyCode={['Backspace','Delete']}
-            onNodesDelete={() => pushUndo()} onEdgesDelete={() => pushUndo()}
-            defaultEdgeOptions={{ type: 'smoothstep', animated: true, style: { stroke: '#FF6600', strokeWidth: 2 } }}>
-            <Controls className="!border-slate-200 !bg-white !shadow-md dark:!border-slate-800 dark:!bg-slate-900" />
-            <MiniMap zoomable pannable className="!border-slate-200 !bg-white !shadow-md dark:!border-slate-800 dark:!bg-slate-900" />
-            <Background variant={BackgroundVariant.Dots} gap={16} size={1} color="#cbd5e1" />
-          </ReactFlow>
-        </main>
-        {selectedNode && <NodeInspector selectedNode={selectedNode} onUpdateNodeData={handleUpdateNode} onDeleteNode={handleDeleteNode} onClose={() => setSelectedNodeId(null)} />}
-      </div>
-      <FlowPlanExportModal isOpen={showExport} onClose={() => setShowExport(false)} nodes={nodes} edges={edges} projectMeta={projectMeta} />
-    </div>
-  );
-}
+    <div className="min-h-screen bg-slate-50">
+      {activeProject ? (
+        <CanvasEditor
+          project={activeProject}
+          initialVersionNumber={activeVersionNumber}
+          onSaveProject={handleSaveProject}
+          onBackToProjects={handleBackToProjects}
+        />
+      ) : (
+        <ProjectList
+          projects={projects}
+          onOpenProject={handleOpenProject}
+          onOpenNewProjectModal={() => setShowNewModal(true)}
+          onDeleteProject={handleDeleteProject}
+          onDuplicateProject={handleDuplicateProject}
+        />
+      )}
 
-// ── LOGIN ──
-function LoginPage({ onLogin }: { onLogin: (e: string) => void }) {
-  const [email, setEmail] = useState(''); const [code, setCode] = useState(''); const [error, setError] = useState('');
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-[var(--atom-navy)] px-4">
-      <div className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-2xl">
-        <div className="mb-6 text-center">
-          <svg viewBox="0 0 100 100" className="mx-auto h-16 w-16" fill="none"><defs><linearGradient id="lg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#FF6000"/><stop offset="100%" stopColor="#E04800"/></linearGradient></defs><circle cx="50" cy="50" r="46" fill="url(#lg)"/><path d="M44 41C36.268 41 30 47.268 30 55C30 58.2 31.1 61.15 32.9 63.5L30.5 70.5L37.5 68.1C39.5 69.3 41.7 70 44 70C51.732 70 58 63.732 58 55C58 47.268 51.732 41 44 41Z" fill="#FFF"/><circle cx="40" cy="54" r="2.2" fill="#0F172A"/><circle cx="48" cy="54" r="2.2" fill="#0F172A"/></svg>
-          <h1 className="mt-4 text-xl font-extrabold text-slate-900">ATOM Onboarding</h1>
-          <p className="mt-1 text-sm text-slate-500">Herramienta interna</p>
-        </div>
-        <form onSubmit={e => { e.preventDefault(); if (!email.includes('@')) { setError('Correo inválido'); return; } if (code !== ACCESS_CODE) { setError('Código incorrecto'); return; } onLogin(email); }} className="space-y-4">
-          <div><label className="mb-1 block text-xs font-bold uppercase text-slate-600">Correo</label><input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full rounded-lg border-2 border-slate-200 px-4 py-2.5 text-sm focus:border-[var(--atom-orange)] focus:outline-none" placeholder="tu@atomchat.io" required /></div>
-          <div><label className="mb-1 block text-xs font-bold uppercase text-slate-600">Código de acceso</label><input type="password" value={code} onChange={e => setCode(e.target.value)} className="w-full rounded-lg border-2 border-slate-200 px-4 py-2.5 text-sm focus:border-[var(--atom-orange)] focus:outline-none" placeholder="••••••••" required /></div>
-          {error && <p className="text-xs font-semibold text-red-500">{error}</p>}
-          <button type="submit" className="w-full rounded-lg bg-[var(--atom-orange)] py-2.5 text-sm font-bold text-white hover:bg-[#e55a00]">Ingresar</button>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-// ── SETUP ──
-function SetupPage({ meta, onSave, onLogout, userEmail }: { meta: ProjectMetadata; onSave: (m: ProjectMetadata) => void; onLogout: () => void; userEmail: string }) {
-  const [f, setF] = useState(meta);
-  const ch = (k: keyof ProjectMetadata, v: string) => setF(p => ({ ...p, [k]: v }));
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-[var(--atom-light)] px-4 dark:bg-slate-950">
-      <div className="w-full max-w-xl rounded-2xl bg-white p-8 shadow-xl dark:bg-slate-900 dark:text-white">
-        <div className="mb-6 flex items-center justify-between"><div><h1 className="text-xl font-extrabold text-slate-900 dark:text-white">Información del Proyecto</h1><p className="text-sm text-slate-500">Datos necesarios para FlowBuilder</p></div><div className="flex items-center gap-2"><span className="text-xs text-slate-400">{userEmail}</span><button onClick={onLogout} className="text-xs text-red-400 hover:underline">Salir</button></div></div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div><label className="mb-1 block text-xs font-bold uppercase text-slate-600 dark:text-slate-400">Nombre del Proyecto *</label><input value={f.name} onChange={e => ch('name', e.target.value)} className="w-full rounded-lg border-2 border-slate-200 px-3 py-2 text-sm focus:border-[var(--atom-orange)] focus:outline-none dark:border-slate-700 dark:bg-slate-800" placeholder="Ej: Banco Digital v1" /></div>
-          <div><label className="mb-1 block text-xs font-bold uppercase text-slate-600 dark:text-slate-400">Cliente / Empresa *</label><input value={f.clientName} onChange={e => ch('clientName', e.target.value)} className="w-full rounded-lg border-2 border-slate-200 px-3 py-2 text-sm focus:border-[var(--atom-orange)] focus:outline-none dark:border-slate-700 dark:bg-slate-800" placeholder="Ej: Banco Digital" /></div>
-          <div><label className="mb-1 block text-xs font-bold uppercase text-slate-600 dark:text-slate-400">Industria</label><select value={f.industry} onChange={e => ch('industry', e.target.value)} className="w-full rounded-lg border-2 border-slate-200 px-3 py-2 text-sm focus:border-[var(--atom-orange)] focus:outline-none dark:border-slate-700 dark:bg-slate-800"><option value="">Seleccionar...</option>{['E-commerce','Salud','Servicios Financieros','Inmobiliario','Educación','Retail','Automotriz','Otro'].map(i => <option key={i} value={i}>{i}</option>)}</select></div>
-          <div><label className="mb-1 block text-xs font-bold uppercase text-slate-600 dark:text-slate-400">Autor</label><input value={f.author || userEmail} onChange={e => ch('author', e.target.value)} className="w-full rounded-lg border-2 border-slate-200 px-3 py-2 text-sm focus:border-[var(--atom-orange)] focus:outline-none dark:border-slate-700 dark:bg-slate-800" /></div>
-        </div>
-        <div className="mt-4 space-y-4">
-          <div><label className="mb-1 block text-xs font-bold uppercase text-slate-600 dark:text-slate-400">Objetivo del Bot</label><textarea value={f.objective} onChange={e => ch('objective', e.target.value)} className="w-full rounded-lg border-2 border-slate-200 px-3 py-2 text-sm focus:border-[var(--atom-orange)] focus:outline-none dark:border-slate-700 dark:bg-slate-800" rows={3} placeholder="¿Qué debe lograr este bot?" /></div>
-          <div><label className="mb-1 block text-xs font-bold uppercase text-slate-600 dark:text-slate-400">Tono de la marca</label><textarea value={f.description} onChange={e => ch('description', e.target.value)} className="w-full rounded-lg border-2 border-slate-200 px-3 py-2 text-sm focus:border-[var(--atom-orange)] focus:outline-none dark:border-slate-700 dark:bg-slate-800" rows={2} placeholder="Ej: Profesional, amable, emojis moderados." /></div>
-        </div>
-        <button onClick={() => onSave(f)} className="mt-6 w-full rounded-lg bg-[var(--atom-orange)] py-3 text-sm font-bold text-white hover:bg-[#e55a00]">Iniciar construcción del flujo</button>
-      </div>
+      {showNewModal && (
+        <NewProjectModal
+          onCreateProject={handleCreateProject}
+          onClose={() => setShowNewModal(false)}
+        />
+      )}
     </div>
   );
 }
