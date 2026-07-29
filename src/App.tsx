@@ -1,9 +1,5 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import {
-  ReactFlow, MiniMap, Controls, Background,
-  useNodesState, useEdgesState, addEdge,
-  Connection, Edge, Node, BackgroundVariant,
-} from '@xyflow/react';
+import { ReactFlow, MiniMap, Controls, Background, useNodesState, useEdgesState, addEdge, Connection, Edge, Node, BackgroundVariant } from '@xyflow/react';
 import { CustomWhatsAppNode } from './components/CustomWhatsAppNode';
 import { SidebarNodePalette } from './components/SidebarNodePalette';
 import { NodeInspector } from './components/NodeInspector';
@@ -11,489 +7,185 @@ import { Header } from './components/Header';
 import { FlowPlanExportModal } from './components/FlowPlanExportModal';
 import { NodeType, WhatsAppNodeData, ProjectMetadata } from './types';
 import { useLanguage } from './i18n';
-import { supabase, signIn, signUp, signOut, getCurrentUser, fetchProjects, saveProject, deleteProject } from './utils/supabaseClient';
-import type { ProjectRow } from './utils/supabaseClient';
 
-const STORAGE_KEY = 'atom_scope_current_project';
+const STORAGE_KEY = 'atom_onboarding_state';
 
-function loadSavedProject(): { nodes: Node<WhatsAppNodeData>[]; edges: Edge[]; meta: ProjectMetadata } | null {
-  try { const raw = localStorage.getItem(STORAGE_KEY); if (raw) return JSON.parse(raw); } catch {}
-  return null;
+function loadState() {
+  try { const r = localStorage.getItem(STORAGE_KEY); return r ? JSON.parse(r) : null; } catch { return null; }
 }
-function saveProject(nodes: Node<WhatsAppNodeData>[], edges: Edge[], meta: ProjectMetadata) {
+function saveState(nodes: any[], edges: any[], meta: ProjectMetadata) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ nodes, edges, meta })); } catch {}
 }
 
-const defaultMeta: ProjectMetadata = {
-  name: '', clientName: '', description: '',
-  industry: '', objective: '', author: '',
-};
+const ACCESS_CODE = 'atom2024';
 
-function getInitialLabel(type: NodeType, t: (k: string) => string): string {
-  const map: Record<string, string> = {
-    message: 'nodeMessageLabel', template: 'nodeTemplateLabel',
-    eval_response: 'nodeEvalResponseLabel', condition: 'nodeConditionLabel',
-    jump: 'nodeJumpLabel', typification: 'nodeTypificationLabel',
-    delay: 'nodeDelayLabel', save_field: 'nodeSaveFieldLabel',
-    smarton: 'nodeSmartonLabel', format: 'nodeFormatLabel',
-    tag: 'nodeTagLabel', customer_stage: 'nodeCustomerStageLabel',
+function getLabel(type: NodeType, t: (k: string) => string): string {
+  const m: Record<string, string> = {
+    message: 'nodeMessageLabel', template: 'nodeTemplateLabel', eval_response: 'nodeEvalResponseLabel',
+    condition: 'nodeConditionLabel', jump: 'nodeJumpLabel', typification: 'nodeTypificationLabel',
+    delay: 'nodeDelayLabel', save_field: 'nodeSaveFieldLabel', smarton: 'nodeSmartonLabel',
+    format: 'nodeFormatLabel', tag: 'nodeTagLabel', customer_stage: 'nodeCustomerStageLabel',
     assign_group: 'nodeAssignGroupLabel', crm: 'nodeCrmLabel',
   };
-  return t(map[type] || 'nodeMessageLabel');
+  return t(m[type] || 'nodeMessageLabel');
 }
-
-// ── Auth ──
-const AUTH_KEY = 'atom_auth_session';
-function getSession() { try { return JSON.parse(localStorage.getItem(AUTH_KEY) || 'null'); } catch { return null; } }
-function setSession(u: any) { localStorage.setItem(AUTH_KEY, JSON.stringify(u)); }
-function clearSession() { localStorage.removeItem(AUTH_KEY); localStorage.removeItem(STORAGE_KEY); }
 
 export default function App() {
   const { t } = useLanguage();
-  const saved = useMemo(() => loadSavedProject(), []);
+  const state = useMemo(() => loadState(), []);
 
+  // ── Auth ──
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userEmail, setUserEmail] = useState('');
-  const [authLoading, setAuthLoading] = useState(true);
-  const [showSetup, setShowSetup] = useState(false);
-  const [projectId, setProjectId] = useState<string | null>(null);
-  const [showProjectList, setShowProjectList] = useState(false);
 
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node<WhatsAppNodeData>>(saved?.nodes || []);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(saved?.edges || []);
-  const [projectMeta, setProjectMeta] = useState<ProjectMetadata>(saved?.meta || defaultMeta);
+  // ── App flow ──
+  const [showSetup, setShowSetup] = useState(!state?.meta?.clientName);
+  const [showExport, setShowExport] = useState(false);
 
-  // Undo
-  const historyRef = useRef<Array<{ nodes: Node<WhatsAppNodeData>[]; edges: Edge[] }>>([]);
-  const pushHistory = useCallback(() => {
-    historyRef.current.push({ nodes: JSON.parse(JSON.stringify(nodes)), edges: JSON.parse(JSON.stringify(edges)) });
-    if (historyRef.current.length > 50) historyRef.current.shift();
-  }, [nodes, edges]);
+  // ── Canvas state ──
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node<WhatsAppNodeData>>(state?.nodes || []);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(state?.edges || []);
+  const [projectMeta, setProjectMeta] = useState<ProjectMetadata>(state?.meta || { name: '', clientName: '', description: '', industry: '', objective: '', author: '' });
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
 
-  // Auto-save to Supabase (debounced)
-  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  // ── Persist ──
+  const saveTimer = useRef<ReturnType<typeof setTimeout>>();
   useEffect(() => {
     if (!isLoggedIn) return;
-    clearTimeout(saveTimeoutRef.current);
-    saveTimeoutRef.current = setTimeout(async () => {
-      try {
-        const newId = await saveProject({
-          id: projectId || undefined,
-          name: projectMeta.name,
-          client_name: projectMeta.clientName,
-          industry: projectMeta.industry,
-          objective: projectMeta.objective,
-          description: projectMeta.description,
-          author: projectMeta.author,
-          nodes: nodes as any[],
-          edges: edges as any[],
-        });
-        if (newId && !projectId) setProjectId(newId);
-      } catch (e) { /* silent */ }
-    }, 2000);
-    return () => clearTimeout(saveTimeoutRef.current);
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => saveState(nodes, edges, projectMeta), 1000);
   }, [nodes, edges, projectMeta, isLoggedIn]);
 
-  useEffect(() => { if (isLoggedIn) saveProject(nodes, edges, projectMeta); }, [nodes, edges, projectMeta, isLoggedIn]);
-
-  // Supabase session check on mount
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user?.email) {
-        setIsLoggedIn(true);
-        setUserEmail(session.user.email);
-      }
-      setAuthLoading(false);
-    });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user?.email) {
-        setIsLoggedIn(true);
-        setUserEmail(session.user.email);
-      } else {
-        setIsLoggedIn(false);
-        setUserEmail('');
-      }
-    });
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
-  const nodeTypes = useMemo(() => ({ customWhatsAppNode: CustomWhatsAppNode }), []);
-
-  const onConnect = useCallback((p: Connection) => setEdges((eds) => addEdge(p, eds)), [setEdges]);
-  const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => setSelectedNodeId(node.id), []);
-  const onPaneClick = useCallback(() => setSelectedNodeId(null), []);
-
-  const handleNewProject = useCallback(() => {
-    setShowProjectList(true);
-  }, []);
-
-  const handleOpenProject = useCallback((p: ProjectRow) => {
-    setNodes(p.nodes || []);
-    setEdges(p.edges || []);
-    setProjectMeta({ name: p.name, clientName: p.client_name, description: p.description, industry: p.industry, objective: p.objective, author: p.author });
-    setProjectId(p.id);
-    setShowProjectList(false);
-    setShowSetup(false);
-    setSelectedNodeId(null);
-  }, [setNodes, setEdges]);
-
-  const handleCreateNewAndSetup = useCallback(() => {
-    setNodes([]); setEdges([]);
-    setProjectMeta(defaultMeta);
-    setProjectId(null);
-    setShowProjectList(false);
-    setShowSetup(true);
-  }, [setNodes, setEdges]);
-
-  const handleUndo = useCallback(() => {
-    const prev = historyRef.current.pop();
-    if (prev) { setNodes(prev.nodes); setEdges(prev.edges); }
-  }, [setNodes, setEdges]);
+  // ── Undo ──
+  const undoStack = useRef<Array<{ nodes: Node<WhatsAppNodeData>[]; edges: Edge[] }>>([]);
+  const pushUndo = useCallback(() => {
+    undoStack.current.push({ nodes: JSON.parse(JSON.stringify(nodes)), edges: JSON.parse(JSON.stringify(edges)) });
+    if (undoStack.current.length > 50) undoStack.current.shift();
+  }, [nodes, edges]);
+  const handleUndo = useCallback(() => { const p = undoStack.current.pop(); if (p) { setNodes(p.nodes); setEdges(p.edges); } }, [setNodes, setEdges]);
 
   useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); handleUndo(); }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    const k = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); handleUndo(); } };
+    window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k);
   }, [handleUndo]);
 
-  const handleAddNode = useCallback((type: NodeType) => {
-    pushHistory();
-    const id = `node-${Date.now()}`;
-    const newNode: Node<WhatsAppNodeData> = {
-      id, type: 'customWhatsAppNode',
-      position: { x: 250 + (nodes.length % 5) * 40, y: 150 + (nodes.length % 5) * 40 },
-      data: {
-        nodeType: type, label: getInitialLabel(type, t), description: '',
-        options: type === 'eval_response' || type === 'smarton' ? ['Opción 1', 'Opción 2'] : undefined,
-        fieldName: type === 'save_field' || type === 'customer_stage' ? 'var_campo' : undefined,
-      },
-    };
-    setNodes((nds) => [...nds, newNode]);
-    setSelectedNodeId(id);
-  }, [nodes.length, setNodes, pushHistory, t]);
+  // ── Canvas handlers ──
+  const nodeTypes = useMemo(() => ({ customWhatsAppNode: CustomWhatsAppNode }), []);
+  const onConnect = useCallback((p: Connection) => setEdges(eds => addEdge(p, eds)), [setEdges]);
+  const onNodeClick = useCallback((_: React.MouseEvent, n: Node) => setSelectedNodeId(n.id), []);
+  const selectedNode = useMemo(() => nodes.find(n => n.id === selectedNodeId) || null, [nodes, selectedNodeId]);
 
-  const handleUpdateNodeData = useCallback((id: string, d: Partial<WhatsAppNodeData>) => {
-    setNodes((nds) => nds.map((n) => n.id === id ? { ...n, data: { ...n.data, ...d } } : n));
+  const handleAddNode = useCallback((type: NodeType) => {
+    pushUndo();
+    const id = `n_${Date.now()}`;
+    const nn: Node<WhatsAppNodeData> = {
+      id, type: 'customWhatsAppNode',
+      position: { x: 300 + (nodes.length % 4) * 320, y: 150 + Math.floor(nodes.length / 4) * 220 },
+      data: { nodeType: type, label: getLabel(type, t), description: '', options: (type === 'eval_response' || type === 'smarton') ? ['Opción 1', 'Opción 2'] : undefined, fieldName: (type === 'save_field' || type === 'customer_stage') ? 'var_campo' : undefined },
+    };
+    setNodes(nds => [...nds, nn]); setSelectedNodeId(id);
+  }, [nodes.length, setNodes, pushUndo, t]);
+
+  const handleUpdateNode = useCallback((id: string, d: Partial<WhatsAppNodeData>) => {
+    setNodes(nds => nds.map(n => n.id === id ? { ...n, data: { ...n.data, ...d } } : n));
   }, [setNodes]);
 
   const handleDeleteNode = useCallback((id: string) => {
-    pushHistory();
-    setNodes((nds) => nds.filter((n) => n.id !== id));
-    setEdges((eds) => eds.filter((e) => e.source !== id && e.target !== id));
+    pushUndo();
+    setNodes(nds => nds.filter(n => n.id !== id)); setEdges(eds => eds.filter(e => e.source !== id && e.target !== id));
     if (selectedNodeId === id) setSelectedNodeId(null);
-  }, [selectedNodeId, setNodes, setEdges, pushHistory]);
+  }, [selectedNodeId, setNodes, setEdges, pushUndo]);
 
-  const selectedNode = useMemo(() => nodes.find((n) => n.id === selectedNodeId) || null, [nodes, selectedNodeId]);
+  const handleNewProject = useCallback(() => {
+    pushUndo(); setNodes([]); setEdges([]);
+    setProjectMeta({ name: '', clientName: '', description: '', industry: '', objective: '', author: '' });
+    setShowSetup(true); setSelectedNodeId(null);
+  }, [setNodes, setEdges, pushUndo]);
 
-  const handleLogout = useCallback(async () => {
-    await signOut();
-    setIsLoggedIn(false);
-    setUserEmail('');
-    localStorage.removeItem(STORAGE_KEY);
-  }, []);
+  const handleSetupDone = useCallback((meta: ProjectMetadata) => { setProjectMeta(meta); setShowSetup(false); }, []);
 
-  // Loading
-  if (authLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[var(--atom-navy)]">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-white border-t-[var(--atom-orange)]" />
-      </div>
-  );
-}
+  const handleBackToSetup = useCallback(() => setShowSetup(true), []);
 
-// ── PROJECT LIST PAGE ──
-function ProjectListPage({ onOpenProject, onCreateNew, onLogout, userEmail, t }: {
-  onOpenProject: (p: ProjectRow) => void;
-  onCreateNew: () => void;
-  onLogout: () => void;
-  userEmail: string;
-  t: (k: string) => string;
-}) {
-  const [projects, setProjects] = useState<ProjectRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  // ── RENDER ──
+  if (!isLoggedIn) return <LoginPage onLogin={(email) => { setUserEmail(email); setIsLoggedIn(true); }} t={t} />;
+  if (showSetup) return <SetupPage meta={projectMeta} onSave={handleSetupDone} onLogout={() => setIsLoggedIn(false)} userEmail={userEmail} t={t} />;
 
-  useEffect(() => {
-    fetchProjects().then(ps => { setProjects(ps); setLoading(false); }).catch(() => setLoading(false));
-  }, []);
-
-  const handleDelete = async (id: string) => {
-    await deleteProject(id);
-    setProjects(prev => prev.filter(p => p.id !== id));
-  };
-
-  return (
-    <div className="flex min-h-screen flex-col bg-[var(--atom-light)] dark:bg-slate-950">
-      <header className="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-6 dark:border-slate-800 dark:bg-slate-950">
-        <div className="flex items-center gap-3">
-          <svg viewBox="0 0 100 100" className="h-9 w-9" fill="none">
-            <defs><linearGradient id="lg3" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#FF6000"/><stop offset="100%" stopColor="#E04800"/></linearGradient></defs>
-            <circle cx="50" cy="50" r="46" fill="url(#lg3)"/>
-            <path d="M44 41C36.268 41 30 47.268 30 55C30 58.2 31.1 61.15 32.9 63.5L30.5 70.5L37.5 68.1C39.5 69.3 41.7 70 44 70C51.732 70 58 63.732 58 55C58 47.268 51.732 41 44 41Z" fill="#FFF"/>
-            <circle cx="40" cy="54" r="2.2" fill="#0F172A"/><circle cx="48" cy="54" r="2.2" fill="#0F172A"/>
-          </svg>
-          <div>
-            <h1 className="text-lg font-extrabold text-slate-900 dark:text-white">ATOM Onboarding</h1>
-            <p className="text-xs text-slate-500">{t('myProjects') || 'Mis Proyectos'}</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-slate-400">{userEmail}</span>
-          <button onClick={onLogout} className="text-xs text-slate-400 hover:text-red-500">Salir</button>
-        </div>
-      </header>
-
-      <main className="flex-1 p-8 max-w-5xl mx-auto w-full">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold text-slate-800 dark:text-white">{t('myProjects') || 'Mis Proyectos'}</h2>
-          <button onClick={onCreateNew}
-            className="rounded-lg bg-[var(--atom-orange)] px-5 py-2.5 text-sm font-bold text-white shadow-md transition-all hover:bg-[#e55a00] hover:shadow-lg">
-            + {t('createProject') || 'Nuevo Proyecto'}
-          </button>
-        </div>
-
-        {loading ? (
-          <div className="flex justify-center py-20">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-[var(--atom-orange)]" />
-          </div>
-        ) : projects.length === 0 ? (
-          <div className="text-center py-20 text-slate-400">
-            <div className="text-5xl mb-4">📋</div>
-            <p className="text-lg font-semibold">No hay proyectos aún</p>
-            <p className="text-sm">Crea tu primer proyecto para empezar</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {projects.map(p => (
-              <div key={p.id}
-                className="group cursor-pointer rounded-xl border-2 border-slate-200 bg-white p-5 shadow-sm transition-all hover:border-[var(--atom-orange)] hover:shadow-md dark:border-slate-700 dark:bg-slate-900"
-                onClick={() => onOpenProject(p)}>
-                <div className="flex items-start justify-between mb-3">
-                  <h3 className="font-bold text-slate-800 dark:text-white truncate">{p.name || 'Sin nombre'}</h3>
-                  <button onClick={e => { e.stopPropagation(); handleDelete(p.id); }}
-                    className="opacity-0 group-hover:opacity-100 text-xs text-red-400 hover:text-red-600 transition-opacity">Eliminar</button>
-                </div>
-                <div className="space-y-1 text-xs text-slate-500">
-                  {p.client_name && <p>Cliente: {p.client_name}</p>}
-                  {p.industry && <p className="inline-block rounded bg-orange-100 px-2 py-0.5 text-[10px] font-semibold text-orange-700">{p.industry}</p>}
-                  <p className="mt-2 text-slate-400">{new Date(p.updated_at).toLocaleDateString()}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </main>
-    </div>
-  );
-}
-
-  // ── LOGIN ──
-  if (!isLoggedIn) {
-    return <LoginPage onLogin={(email) => { setUserEmail(email); }} t={t} />;
-  }
-
-  // ── PROJECT LIST ──
-  if (showProjectList) {
-    return <ProjectListPage onOpenProject={handleOpenProject} onCreateNew={handleCreateNewAndSetup} onLogout={handleLogout} userEmail={userEmail} t={t} />;
-  }
-
-  // ── SETUP ──
-  if (showSetup) {
-    return <SetupPage meta={projectMeta} onSave={(meta) => { setProjectMeta(meta); setShowSetup(false); }} onLogout={handleLogout} userEmail={userEmail} t={t} />;
-  }
-
-  // ── CANVAS ──
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-[var(--atom-light)] font-sans text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100">
-      <Header
-        projectMeta={projectMeta} onUpdateProjectMeta={setProjectMeta}
-        nodeCount={nodes.length} edgeCount={edges.length}
-        onOpenExportModal={() => setIsExportModalOpen(true)}
-        onNewProject={handleNewProject} onUndo={handleUndo}
-        canUndo={historyRef.current.length > 0}
-        onSetup={() => setShowSetup(true)}
-        onLogout={handleLogout}
-        userEmail={userEmail}
-      />
+      <Header projectMeta={projectMeta} onUpdateProjectMeta={setProjectMeta} nodeCount={nodes.length} edgeCount={edges.length}
+        onOpenExportModal={() => setShowExport(true)} onNewProject={handleNewProject} onUndo={handleUndo}
+        canUndo={undoStack.current.length > 0} onSetup={handleBackToSetup} onLogout={() => setIsLoggedIn(false)} userEmail={userEmail} />
       <div className="flex flex-1 overflow-hidden">
         <SidebarNodePalette onAddNode={handleAddNode} />
         <main className="relative flex-1 bg-[var(--atom-light)] dark:bg-slate-900">
           {nodes.length === 0 && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-              <div className="text-center text-slate-400">
-                <div className="text-5xl mb-4">🖱️</div>
-                <p className="text-lg font-semibold">{t('dragNodesHint') || 'Arrastra nodos desde la paleta izquierda'}</p>
-              </div>
+              <div className="text-center text-slate-400"><div className="text-5xl mb-4">🖱️</div><p className="text-lg font-semibold">Arrastra nodos desde la paleta izquierda</p></div>
             </div>
           )}
-          <ReactFlow
-            nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
-            onConnect={onConnect} onNodeClick={onNodeClick} onPaneClick={onPaneClick}
-            nodeTypes={nodeTypes} fitView
-            deleteKeyCode={['Backspace', 'Delete']}
-            onNodesDelete={() => pushHistory()} onEdgesDelete={() => pushHistory()}
-            defaultEdgeOptions={{ type: 'smoothstep', animated: true, style: { stroke: '#FF6600', strokeWidth: 2 } }}
-          >
+          <ReactFlow nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
+            onConnect={onConnect} onNodeClick={onNodeClick} onPaneClick={() => setSelectedNodeId(null)}
+            nodeTypes={nodeTypes} fitView deleteKeyCode={['Backspace','Delete']}
+            onNodesDelete={() => pushUndo()} onEdgesDelete={() => pushUndo()}
+            defaultEdgeOptions={{ type: 'smoothstep', animated: true, style: { stroke: '#FF6600', strokeWidth: 2 } }}>
             <Controls className="!border-slate-200 !bg-white !shadow-md dark:!border-slate-800 dark:!bg-slate-900" />
             <MiniMap zoomable pannable className="!border-slate-200 !bg-white !shadow-md dark:!border-slate-800 dark:!bg-slate-900" />
             <Background variant={BackgroundVariant.Dots} gap={16} size={1} color="#cbd5e1" />
           </ReactFlow>
         </main>
-        {selectedNode && (
-          <NodeInspector selectedNode={selectedNode} onUpdateNodeData={handleUpdateNodeData}
-            onDeleteNode={handleDeleteNode} onClose={() => setSelectedNodeId(null)} />
-        )}
+        {selectedNode && <NodeInspector selectedNode={selectedNode} onUpdateNodeData={handleUpdateNode} onDeleteNode={handleDeleteNode} onClose={() => setSelectedNodeId(null)} />}
       </div>
-      <FlowPlanExportModal isOpen={isExportModalOpen} onClose={() => setIsExportModalOpen(false)}
-        nodes={nodes} edges={edges} projectMeta={projectMeta} />
+      <FlowPlanExportModal isOpen={showExport} onClose={() => setShowExport(false)} nodes={nodes} edges={edges} projectMeta={projectMeta} />
     </div>
   );
 }
 
-// ── LOGIN PAGE (Supabase Auth) ──
-function LoginPage({ onLogin, t }: { onLogin: (email: string) => void; t: (k: string) => string }) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [isSignUp, setIsSignUp] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-    try {
-      if (isSignUp) {
-        await signUp(email, password);
-        setError('Revisa tu correo para confirmar la cuenta.');
-      } else {
-        await signIn(email, password);
-        onLogin(email);
-      }
-    } catch (err: any) {
-      setError(err.message || 'Error de autenticación');
-    } finally {
-      setLoading(false);
-    }
+// ── LOGIN ──
+function LoginPage({ onLogin, t }: { onLogin: (e: string) => void; t: (k: string) => string }) {
+  const [email, setEmail] = useState(''); const [code, setCode] = useState(''); const [error, setError] = useState('');
+  const submit = (e: React.FormEvent) => { e.preventDefault();
+    if (!email.includes('@')) { setError('Correo inválido'); return; }
+    if (code !== ACCESS_CODE) { setError('Código incorrecto'); return; }
+    onLogin(email);
   };
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-[var(--atom-navy)] px-4">
       <div className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-2xl">
         <div className="mb-6 text-center">
-          <svg viewBox="0 0 100 100" className="mx-auto h-16 w-16" fill="none">
-            <defs><linearGradient id="lg2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#FF6000"/><stop offset="100%" stopColor="#E04800"/></linearGradient></defs>
-            <circle cx="50" cy="50" r="46" fill="url(#lg2)"/>
-            <path d="M44 41C36.268 41 30 47.268 30 55C30 58.2 31.1 61.15 32.9 63.5L30.5 70.5L37.5 68.1C39.5 69.3 41.7 70 44 70C51.732 70 58 63.732 58 55C58 47.268 51.732 41 44 41Z" fill="#FFF"/>
-            <circle cx="40" cy="54" r="2.2" fill="#0F172A"/><circle cx="48" cy="54" r="2.2" fill="#0F172A"/>
-          </svg>
+          <svg viewBox="0 0 100 100" className="mx-auto h-16 w-16" fill="none"><defs><linearGradient id="lg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#FF6000"/><stop offset="100%" stopColor="#E04800"/></linearGradient></defs><circle cx="50" cy="50" r="46" fill="url(#lg)"/><path d="M44 41C36.268 41 30 47.268 30 55C30 58.2 31.1 61.15 32.9 63.5L30.5 70.5L37.5 68.1C39.5 69.3 41.7 70 44 70C51.732 70 58 63.732 58 55C58 47.268 51.732 41 44 41Z" fill="#FFF"/><circle cx="40" cy="54" r="2.2" fill="#0F172A"/><circle cx="48" cy="54" r="2.2" fill="#0F172A"/></svg>
           <h1 className="mt-4 text-xl font-extrabold text-slate-900">ATOM Onboarding</h1>
-          <p className="mt-1 text-sm text-slate-500">{isSignUp ? 'Crear cuenta' : 'Iniciar sesión'}</p>
+          <p className="mt-1 text-sm text-slate-500">Herramienta interna</p>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-600">Correo</label>
-            <input type="email" value={email} onChange={e => setEmail(e.target.value)}
-              className="w-full rounded-lg border-2 border-slate-200 px-4 py-2.5 text-sm focus:border-[var(--atom-orange)] focus:outline-none"
-              placeholder="tu@atomchat.io" required />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-600">Contraseña</label>
-            <input type="password" value={password} onChange={e => setPassword(e.target.value)}
-              className="w-full rounded-lg border-2 border-slate-200 px-4 py-2.5 text-sm focus:border-[var(--atom-orange)] focus:outline-none"
-              placeholder="••••••••" required minLength={6} />
-          </div>
-          {error && <p className={`text-xs font-semibold ${error.includes('Revisa') ? 'text-green-600' : 'text-red-500'}`}>{error}</p>}
-          <button type="submit" disabled={loading}
-            className="w-full rounded-lg bg-[var(--atom-orange)] py-2.5 text-sm font-bold text-white transition-colors hover:bg-[#e55a00] disabled:opacity-50">
-            {loading ? 'Cargando...' : isSignUp ? 'Crear cuenta' : 'Ingresar'}
-          </button>
+        <form onSubmit={submit} className="space-y-4">
+          <div><label className="mb-1 block text-xs font-bold uppercase text-slate-600">Correo</label><input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full rounded-lg border-2 border-slate-200 px-4 py-2.5 text-sm focus:border-[var(--atom-orange)] focus:outline-none" placeholder="tu@atomchat.io" required /></div>
+          <div><label className="mb-1 block text-xs font-bold uppercase text-slate-600">Código de acceso</label><input type="password" value={code} onChange={e => setCode(e.target.value)} className="w-full rounded-lg border-2 border-slate-200 px-4 py-2.5 text-sm focus:border-[var(--atom-orange)] focus:outline-none" placeholder="••••••••" required /></div>
+          {error && <p className="text-xs font-semibold text-red-500">{error}</p>}
+          <button type="submit" className="w-full rounded-lg bg-[var(--atom-orange)] py-2.5 text-sm font-bold text-white hover:bg-[#e55a00]">Ingresar</button>
         </form>
-        <p className="mt-4 text-center text-xs text-slate-400">
-          {isSignUp ? '¿Ya tienes cuenta?' : '¿No tienes cuenta?'}{' '}
-          <button onClick={() => { setIsSignUp(!isSignUp); setError(''); }} className="font-bold text-[var(--atom-orange)] hover:underline">
-            {isSignUp ? 'Inicia sesión' : 'Regístrate'}
-          </button>
-        </p>
       </div>
     </div>
   );
 }
 
-// ── SETUP PAGE ──
-function SetupPage({ meta, onSave, onLogout, userEmail, t }: {
-  meta: ProjectMetadata; onSave: (m: ProjectMetadata) => void;
-  onLogout: () => void; userEmail: string; t: (k: string) => string;
-}) {
-  const [form, setForm] = useState(meta);
-  const handleChange = (field: keyof ProjectMetadata, value: string) => setForm(prev => ({ ...prev, [field]: value }));
-
+// ── SETUP ──
+function SetupPage({ meta, onSave, onLogout, userEmail, t }: { meta: ProjectMetadata; onSave: (m: ProjectMetadata) => void; onLogout: () => void; userEmail: string; t: (k: string) => string }) {
+  const [f, setF] = useState(meta);
+  const ch = (k: keyof ProjectMetadata, v: string) => setF(p => ({ ...p, [k]: v }));
   return (
     <div className="flex min-h-screen items-center justify-center bg-[var(--atom-light)] px-4 dark:bg-slate-950">
       <div className="w-full max-w-xl rounded-2xl bg-white p-8 shadow-xl dark:bg-slate-900 dark:text-white">
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-extrabold text-slate-900 dark:text-white">{t('projectMetadataTitle') || 'Información del Proyecto'}</h1>
-            <p className="text-sm text-slate-500">{t('setupSubtitle') || 'Datos del cliente necesarios para FlowBuilder'}</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-400">{userEmail}</span>
-            <button onClick={onLogout} className="text-xs text-red-400 hover:underline">Salir</button>
-          </div>
-        </div>
-
+        <div className="mb-6 flex items-center justify-between"><div><h1 className="text-xl font-extrabold text-slate-900 dark:text-white">Información del Proyecto</h1><p className="text-sm text-slate-500">Datos del cliente necesarios para FlowBuilder</p></div><div className="flex items-center gap-2"><span className="text-xs text-slate-400">{userEmail}</span><button onClick={onLogout} className="text-xs text-red-400 hover:underline">Salir</button></div></div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div>
-            <label className="mb-1 block text-xs font-bold uppercase text-slate-600 dark:text-slate-400">{t('projectNameLabel') || 'Nombre del Proyecto'}</label>
-            <input value={form.name} onChange={e => handleChange('name', e.target.value)}
-              className="w-full rounded-lg border-2 border-slate-200 px-3 py-2 text-sm focus:border-[var(--atom-orange)] focus:outline-none dark:border-slate-700 dark:bg-slate-800"
-              placeholder="Ej: Hansa Automotriz v1" />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-bold uppercase text-slate-600 dark:text-slate-400">{t('clientNameLabel') || 'Cliente / Empresa'}</label>
-            <input value={form.clientName} onChange={e => handleChange('clientName', e.target.value)}
-              className="w-full rounded-lg border-2 border-slate-200 px-3 py-2 text-sm focus:border-[var(--atom-orange)] focus:outline-none dark:border-slate-700 dark:bg-slate-800"
-              placeholder="Ej: Hansa" />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-bold uppercase text-slate-600 dark:text-slate-400">{t('industryLabel') || 'Industria'}</label>
-            <select value={form.industry} onChange={e => handleChange('industry', e.target.value)}
-              className="w-full rounded-lg border-2 border-slate-200 px-3 py-2 text-sm focus:border-[var(--atom-orange)] focus:outline-none dark:border-slate-700 dark:bg-slate-800">
-              <option value="">{t('selectIndustry') || 'Seleccionar...'}</option>
-              {['E-commerce','Salud','Servicios Financieros','Inmobiliario','Educación','Retail','Automotriz','Otro'].map(i => (
-                <option key={i} value={i}>{i}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-bold uppercase text-slate-600 dark:text-slate-400">{t('authorLabel') || 'Onboarding a cargo'}</label>
-            <input value={form.author || userEmail} onChange={e => handleChange('author', e.target.value)}
-              className="w-full rounded-lg border-2 border-slate-200 px-3 py-2 text-sm focus:border-[var(--atom-orange)] focus:outline-none dark:border-slate-700 dark:bg-slate-800" />
-          </div>
+          <div><label className="mb-1 block text-xs font-bold uppercase text-slate-600 dark:text-slate-400">Nombre del Proyecto</label><input value={f.name} onChange={e => ch('name', e.target.value)} className="w-full rounded-lg border-2 border-slate-200 px-3 py-2 text-sm focus:border-[var(--atom-orange)] focus:outline-none dark:border-slate-700 dark:bg-slate-800" placeholder="Ej: Hansa Automotriz v1" /></div>
+          <div><label className="mb-1 block text-xs font-bold uppercase text-slate-600 dark:text-slate-400">Cliente / Empresa</label><input value={f.clientName} onChange={e => ch('clientName', e.target.value)} className="w-full rounded-lg border-2 border-slate-200 px-3 py-2 text-sm focus:border-[var(--atom-orange)] focus:outline-none dark:border-slate-700 dark:bg-slate-800" placeholder="Ej: Hansa" /></div>
+          <div><label className="mb-1 block text-xs font-bold uppercase text-slate-600 dark:text-slate-400">Industria</label><select value={f.industry} onChange={e => ch('industry', e.target.value)} className="w-full rounded-lg border-2 border-slate-200 px-3 py-2 text-sm focus:border-[var(--atom-orange)] focus:outline-none dark:border-slate-700 dark:bg-slate-800"><option value="">Seleccionar...</option>{['E-commerce','Salud','Servicios Financieros','Inmobiliario','Educación','Retail','Automotriz','Otro'].map(i => <option key={i} value={i}>{i}</option>)}</select></div>
+          <div><label className="mb-1 block text-xs font-bold uppercase text-slate-600 dark:text-slate-400">Autor</label><input value={f.author || userEmail} onChange={e => ch('author', e.target.value)} className="w-full rounded-lg border-2 border-slate-200 px-3 py-2 text-sm focus:border-[var(--atom-orange)] focus:outline-none dark:border-slate-700 dark:bg-slate-800" /></div>
         </div>
-
         <div className="mt-4 space-y-4">
-          <div>
-            <label className="mb-1 block text-xs font-bold uppercase text-slate-600 dark:text-slate-400">{t('objectiveLabel') || 'Objetivo del Bot'}</label>
-            <textarea value={form.objective} onChange={e => handleChange('objective', e.target.value)}
-              className="w-full rounded-lg border-2 border-slate-200 px-3 py-2 text-sm focus:border-[var(--atom-orange)] focus:outline-none dark:border-slate-700 dark:bg-slate-800"
-              rows={3} placeholder="¿Qué debe lograr este bot? Ej: Reducir tiempo de respuesta, calificar leads, agendar citas..." />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-bold uppercase text-slate-600 dark:text-slate-400">{t('toneLabel') || 'Tono de la marca'}</label>
-            <textarea value={form.description} onChange={e => handleChange('description', e.target.value)}
-              className="w-full rounded-lg border-2 border-slate-200 px-3 py-2 text-sm focus:border-[var(--atom-orange)] focus:outline-none dark:border-slate-700 dark:bg-slate-800"
-              rows={2} placeholder="Ej: Profesional, amable, emojis moderados. Dirigirse al cliente por su primer nombre." />
-          </div>
+          <div><label className="mb-1 block text-xs font-bold uppercase text-slate-600 dark:text-slate-400">Objetivo del Bot</label><textarea value={f.objective} onChange={e => ch('objective', e.target.value)} className="w-full rounded-lg border-2 border-slate-200 px-3 py-2 text-sm focus:border-[var(--atom-orange)] focus:outline-none dark:border-slate-700 dark:bg-slate-800" rows={3} placeholder="¿Qué debe lograr este bot?" /></div>
+          <div><label className="mb-1 block text-xs font-bold uppercase text-slate-600 dark:text-slate-400">Tono de la marca</label><textarea value={f.description} onChange={e => ch('description', e.target.value)} className="w-full rounded-lg border-2 border-slate-200 px-3 py-2 text-sm focus:border-[var(--atom-orange)] focus:outline-none dark:border-slate-700 dark:bg-slate-800" rows={2} placeholder="Ej: Profesional, amable, emojis moderados." /></div>
         </div>
-
-        <button onClick={() => onSave(form)}
-          className="mt-6 w-full rounded-lg bg-[var(--atom-orange)] py-3 text-sm font-bold text-white transition-colors hover:bg-[#e55a00]">
-          {t('startBuilding') || 'Iniciar construcción del flujo'}
-        </button>
+        <button onClick={() => onSave(f)} className="mt-6 w-full rounded-lg bg-[var(--atom-orange)] py-3 text-sm font-bold text-white hover:bg-[#e55a00]">Iniciar construcción del flujo</button>
       </div>
     </div>
   );
