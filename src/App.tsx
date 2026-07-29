@@ -11,6 +11,7 @@ import { Header } from './components/Header';
 import { FlowPlanExportModal } from './components/FlowPlanExportModal';
 import { NodeType, WhatsAppNodeData, ProjectMetadata } from './types';
 import { useLanguage } from './i18n';
+import { supabase, signIn, signUp, signOut, getCurrentUser } from './utils/supabaseClient';
 
 const STORAGE_KEY = 'atom_scope_current_project';
 
@@ -49,10 +50,10 @@ function clearSession() { localStorage.removeItem(AUTH_KEY); localStorage.remove
 export default function App() {
   const { t } = useLanguage();
   const saved = useMemo(() => loadSavedProject(), []);
-  const session = useMemo(() => getSession(), []);
 
-  const [isLoggedIn, setIsLoggedIn] = useState(!!session?.email);
-  const [userEmail, setUserEmail] = useState(session?.email || '');
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userEmail, setUserEmail] = useState('');
+  const [authLoading, setAuthLoading] = useState(true);
   const [showSetup, setShowSetup] = useState(!saved || !saved.meta?.clientName);
 
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<WhatsAppNodeData>>(saved?.nodes || []);
@@ -67,6 +68,27 @@ export default function App() {
   }, [nodes, edges]);
 
   useEffect(() => { if (isLoggedIn) saveProject(nodes, edges, projectMeta); }, [nodes, edges, projectMeta, isLoggedIn]);
+
+  // Supabase session check on mount
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user?.email) {
+        setIsLoggedIn(true);
+        setUserEmail(session.user.email);
+      }
+      setAuthLoading(false);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user?.email) {
+        setIsLoggedIn(true);
+        setUserEmail(session.user.email);
+      } else {
+        setIsLoggedIn(false);
+        setUserEmail('');
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
@@ -123,14 +145,30 @@ export default function App() {
 
   const selectedNode = useMemo(() => nodes.find((n) => n.id === selectedNodeId) || null, [nodes, selectedNodeId]);
 
+  const handleLogout = useCallback(async () => {
+    await signOut();
+    setIsLoggedIn(false);
+    setUserEmail('');
+    localStorage.removeItem(STORAGE_KEY);
+  }, []);
+
+  // Loading
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[var(--atom-navy)]">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-white border-t-[var(--atom-orange)]" />
+      </div>
+    );
+  }
+
   // ── LOGIN ──
   if (!isLoggedIn) {
-    return <LoginPage onLogin={(email) => { setSession({ email, ts: Date.now() }); setIsLoggedIn(true); setUserEmail(email); }} t={t} />;
+    return <LoginPage onLogin={(email) => { setUserEmail(email); }} t={t} />;
   }
 
   // ── SETUP ──
   if (showSetup) {
-    return <SetupPage meta={projectMeta} onSave={(meta) => { setProjectMeta(meta); setShowSetup(false); }} onLogout={() => { clearSession(); setIsLoggedIn(false); }} userEmail={userEmail} t={t} />;
+    return <SetupPage meta={projectMeta} onSave={(meta) => { setProjectMeta(meta); setShowSetup(false); }} onLogout={handleLogout} userEmail={userEmail} t={t} />;
   }
 
   // ── CANVAS ──
@@ -143,7 +181,7 @@ export default function App() {
         onNewProject={handleNewProject} onUndo={handleUndo}
         canUndo={historyRef.current.length > 0}
         onSetup={() => setShowSetup(true)}
-        onLogout={() => { clearSession(); setIsLoggedIn(false); }}
+        onLogout={handleLogout}
         userEmail={userEmail}
       />
       <div className="flex flex-1 overflow-hidden">
@@ -181,18 +219,31 @@ export default function App() {
   );
 }
 
-// ── LOGIN PAGE ──
+// ── LOGIN PAGE (Supabase Auth) ──
 function LoginPage({ onLogin, t }: { onLogin: (email: string) => void; t: (k: string) => string }) {
   const [email, setEmail] = useState('');
-  const [code, setCode] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const ACCESS_CODE = 'atom2024';
+  const [loading, setLoading] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.includes('@')) { setError('Ingresa un correo válido'); return; }
-    if (code !== ACCESS_CODE) { setError('Código de acceso incorrecto'); return; }
-    onLogin(email);
+    setError('');
+    setLoading(true);
+    try {
+      if (isSignUp) {
+        await signUp(email, password);
+        setError('Revisa tu correo para confirmar la cuenta.');
+      } else {
+        await signIn(email, password);
+        onLogin(email);
+      }
+    } catch (err: any) {
+      setError(err.message || 'Error de autenticación');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -206,7 +257,7 @@ function LoginPage({ onLogin, t }: { onLogin: (email: string) => void; t: (k: st
             <circle cx="40" cy="54" r="2.2" fill="#0F172A"/><circle cx="48" cy="54" r="2.2" fill="#0F172A"/>
           </svg>
           <h1 className="mt-4 text-xl font-extrabold text-slate-900">ATOM Onboarding</h1>
-          <p className="mt-1 text-sm text-slate-500">{t('loginSubtitle') || 'Herramienta interna'}</p>
+          <p className="mt-1 text-sm text-slate-500">{isSignUp ? 'Crear cuenta' : 'Iniciar sesión'}</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -216,17 +267,23 @@ function LoginPage({ onLogin, t }: { onLogin: (email: string) => void; t: (k: st
               placeholder="tu@atomchat.io" required />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-600">{t('loginLabel') || 'Código de acceso'}</label>
-            <input type="password" value={code} onChange={e => setCode(e.target.value)}
+            <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-600">Contraseña</label>
+            <input type="password" value={password} onChange={e => setPassword(e.target.value)}
               className="w-full rounded-lg border-2 border-slate-200 px-4 py-2.5 text-sm focus:border-[var(--atom-orange)] focus:outline-none"
-              placeholder="••••••••" required />
+              placeholder="••••••••" required minLength={6} />
           </div>
-          {error && <p className="text-xs font-semibold text-red-500">{error}</p>}
-          <button type="submit"
-            className="w-full rounded-lg bg-[var(--atom-orange)] py-2.5 text-sm font-bold text-white transition-colors hover:bg-[#e55a00]">
-            {t('loginBtn') || 'Ingresar'}
+          {error && <p className={`text-xs font-semibold ${error.includes('Revisa') ? 'text-green-600' : 'text-red-500'}`}>{error}</p>}
+          <button type="submit" disabled={loading}
+            className="w-full rounded-lg bg-[var(--atom-orange)] py-2.5 text-sm font-bold text-white transition-colors hover:bg-[#e55a00] disabled:opacity-50">
+            {loading ? 'Cargando...' : isSignUp ? 'Crear cuenta' : 'Ingresar'}
           </button>
         </form>
+        <p className="mt-4 text-center text-xs text-slate-400">
+          {isSignUp ? '¿Ya tienes cuenta?' : '¿No tienes cuenta?'}{' '}
+          <button onClick={() => { setIsSignUp(!isSignUp); setError(''); }} className="font-bold text-[var(--atom-orange)] hover:underline">
+            {isSignUp ? 'Inicia sesión' : 'Regístrate'}
+          </button>
+        </p>
       </div>
     </div>
   );
