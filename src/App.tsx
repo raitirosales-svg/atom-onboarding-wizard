@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect, Component } from 'react';
 import { ReactFlow, MiniMap, Controls, Background, useNodesState, useEdgesState, addEdge, Connection, Edge, Node, BackgroundVariant } from '@xyflow/react';
 import { CustomWhatsAppNode } from './components/CustomWhatsAppNode';
 import { SidebarNodePalette } from './components/SidebarNodePalette';
@@ -111,6 +111,7 @@ export default function App() {
   if (showSetup) return <SetupPage meta={projectMeta} onSave={handleSetupDone} onLogout={() => setIsLoggedIn(false)} userEmail={userEmail} t={t} />;
 
   return (
+    <ErrorBoundary>
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-[var(--atom-light)] font-sans text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100">
       <Header projectMeta={projectMeta} onUpdateProjectMeta={setProjectMeta} nodeCount={nodes.length} edgeCount={edges.length}
         onOpenExportModal={() => setShowExport(true)} onNewProject={handleNewProject} onUndo={handleUndo}
@@ -137,7 +138,31 @@ export default function App() {
       </div>
       <FlowPlanExportModal isOpen={showExport} onClose={() => setShowExport(false)} nodes={nodes} edges={edges} projectMeta={projectMeta} />
     </div>
+    </ErrorBoundary>
   );
+}
+
+// ── ERROR BOUNDARY ──
+class ErrorBoundary extends Component<{ children: React.ReactNode }, { error: Error | null }> {
+  constructor(props: any) { super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(error: Error) { return { error }; }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="flex min-h-screen items-center justify-center bg-[var(--atom-navy)] px-4">
+          <div className="max-w-lg rounded-2xl bg-white p-8 text-center shadow-2xl">
+            <div className="text-5xl mb-4">⚠️</div>
+            <h1 className="text-xl font-extrabold text-red-600 mb-2">Error en la aplicación</h1>
+            <p className="text-sm text-slate-600 mb-4">{this.state.error.message}</p>
+            <pre className="text-xs text-left bg-slate-100 p-3 rounded-lg overflow-auto max-h-40 mb-4">{this.state.error.stack?.substring(0, 500)}</pre>
+            <button onClick={() => { this.setState({ error: null }); window.location.reload(); }}
+              className="rounded-lg bg-[var(--atom-orange)] px-4 py-2 text-sm font-bold text-white">Reintentar</button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 // ── LOGIN ──
